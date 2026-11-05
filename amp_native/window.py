@@ -145,6 +145,8 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
         view.connect("create", self._create_web_view)
         view.connect("permission-request", self._permission_request)
         view.connect("load-changed", self._load_changed)
+        view.connect("load-failed", self._load_failed)
+        view.connect("web-process-terminated", lambda _v, reason: log.warning("web process terminated: %s", reason.value_nick))
         view.connect("notify::title", lambda v, _p: self.set_title(v.get_title() or config.APP_NAME))
         view.connect("context-menu", self._context_menu)
 
@@ -218,7 +220,8 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
                 if callback:
                     callback(json.loads(value.to_json(0) or "null"))
             except GLib.Error as error:
-                log.debug("script failed: %s", error.message)
+                # The message names the failure, not the script, which can carry tokens.
+                log.warning("script failed: %s", error.message)
                 if callback:
                     callback(None)
 
@@ -285,6 +288,12 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
             return True
         return False
 
+    def _load_failed(self, _view, _event, uri, error):
+        # A navigation that replaces another one is cancelled; that is not a failure.
+        if not error.matches(WebKit.NetworkError.quark(), WebKit.NetworkError.CANCELLED):
+            log.warning("load failed: %s: %s", urlsplit(uri)._replace(query="", fragment="").geturl(), error.message)
+        return False
+
     def _load_changed(self, view, event):
         if event == WebKit.LoadEvent.COMMITTED:
             uri = view.get_uri() or ""
@@ -317,7 +326,10 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
             body = None
         # A Huddle message carries a call token; keep it out of the log.
         log.debug("message %s %s", name, "{…}" if name == "ampNativeHuddle" else str(body)[:300])
-        getattr(self, "_msg_" + name)(body)
+        try:
+            getattr(self, "_msg_" + name)(body)
+        except Exception:
+            log.exception("handler %s failed", name)
 
     def _on_reply_message(self, _manager, value, reply, name):
         try:
@@ -436,10 +448,13 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
         }
 
     def _reply_ampNativeUnifiedLog(self, _body):
-        try:
-            return {"log": config.LOG_FILE.read_text()[-200_000:]}
-        except OSError:
-            return {"log": ""}
+        parts = []
+        for path in (config.LOG_FILE, config.STDERR_LOG, config.RUNNER_LOG):
+            try:
+                parts.append(f"==> {path.name} <==\n{path.read_text(errors='replace')[-200_000:]}")
+            except OSError:
+                pass
+        return {"log": "\n".join(parts)}
 
     # ---- window behaviour --------------------------------------------------------------------
 

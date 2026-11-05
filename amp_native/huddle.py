@@ -138,7 +138,11 @@ class Call:
         threading.Thread(target=self.loop.run_forever, name="huddle", daemon=True).start()
 
     def submit(self, coroutine):
-        return asyncio.run_coroutine_threadsafe(coroutine, self.loop)
+        future = asyncio.run_coroutine_threadsafe(coroutine, self.loop)
+        name = coroutine.__name__
+        future.add_done_callback(
+            lambda f: f.cancelled() or not f.exception() or log.warning("huddle %s failed: %s", name, f.exception()))
+        return future
 
     def _ui(self, method, *args):
         GLib.idle_add(lambda: getattr(self.ui, method)(*args) and False)
@@ -208,6 +212,7 @@ class Call:
             try:
                 await self._start_camera()
             except Exception as e:
+                log.warning("huddle camera failed: %s", e)
                 error = "No camera found." if isinstance(e, RuntimeError) else f"Camera failed: {e}"
         elif not enabled and self.camera is not None:
             self.camera.stop()

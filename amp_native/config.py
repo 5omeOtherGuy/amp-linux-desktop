@@ -29,6 +29,7 @@ CACHE_DIR = _xdg("XDG_CACHE_HOME", ".cache") / "amp-native"
 STATE_FILE = CONFIG_DIR / "settings.json"
 LOG_FILE = CACHE_DIR / "amp-native.log"
 RUNNER_LOG = CACHE_DIR / "runner.log"
+STDERR_LOG = CACHE_DIR / "stderr.log"  # written by the launcher scripts/install creates
 ICON_DIR = DATA_DIR / "icons"
 
 ZOOM_FACTORS = [0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
