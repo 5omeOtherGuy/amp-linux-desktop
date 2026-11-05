@@ -13,6 +13,10 @@ from . import config  # noqa: E402
 
 
 def main():
+    # GTK 4.16+ defaults to its Vulkan renderer, which shows WebKit's frames late: on an RTX 3060
+    # (driver 615, GTK 4.24, WebKitGTK 2.54) keypress-to-screen in the composer was 117 ms median
+    # with Vulkan and 42 ms with GL, as fast as Chromium. GSK_RENDERER set by the user still wins.
+    os.environ.setdefault("GSK_RENDERER", "gl")
     config.CACHE_DIR.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         filename=config.LOG_FILE,
