@@ -212,6 +212,26 @@ def confirmation_result(event_detail):
     )
 
 
+# Without WebRTC the page's Desktop, Mac and Terminal tabs never connect: its WebRTC transport
+# throws instead of reporting itself unavailable, so the page never tries its WebSocket fallbacks
+# (reported to Amp as amp_bug_5NZEia51FtDkyQ7ZdMxnXC, 2026-11-05). When the ICE server request
+# fails, the page backs off from WebRTC and uses them.
+NO_WEBRTC = """
+(() => {
+  if (window !== window.top || typeof RTCPeerConnection === 'function' || window.__ampNativeNoWebRTC) return;
+  window.__ampNativeNoWebRTC = true;
+  const originalFetch = window.fetch.bind(window);
+  const iceServers = /^\\/_app\\/remote\\/[^/]+\\/getWebRTCIceServers$/;
+  window.fetch = (input, init) => {
+    let url;
+    try { url = new URL(input instanceof Request ? input.url : String(input), location.href) } catch { return originalFetch(input, init) }
+    if (url.origin === location.origin && iceServers.test(url.pathname)) return Promise.reject(new TypeError('WebRTC is unavailable'));
+    return originalFetch(input, init);
+  };
+})();
+"""
+
+
 # Distribution WebKitGTK has no WebRTC, so the page's LiveKit client cannot join a Huddle. When
 # the page asks for the call's token, hand it to the native client (huddle.py) and tell the page
 # the call opened in its own window; the page's join then stops with that message.

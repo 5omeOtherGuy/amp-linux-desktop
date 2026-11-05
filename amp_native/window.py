@@ -167,6 +167,7 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
             scripts.EXTERNAL_WINDOW_OPEN,
             scripts.OPEN_IN_NEW_WINDOW,
             scripts.CLIPBOARD,
+            scripts.NO_WEBRTC,
         ] + ([scripts.HUDDLE] if huddle.available() else []) + ([scripts.runner_state(self.app.runner.runner_id)] if self.app.runner.running else [])
 
     def reload_user_scripts(self):
