@@ -14,7 +14,7 @@ WebKitGTK has no WebRTC).
 
 Needs Python 3 with PyGObject, GTK 4, libadwaita 1.2+ and WebKitGTK 6.0:
 
-- Arch: `pacman -S python-gobject gtk4 libadwaita webkitgtk-6.0 p7zip`
+- Arch: `pacman -S python-gobject gtk4 libadwaita webkitgtk-6.0 7zip`
 - Debian/Ubuntu: `apt install python3-gi gir1.2-adw-1 gir1.2-webkit-6.0 7zip`
 
 Optional: GStreamer (`gir1.2-gstreamer-1.0`, PulseAudio/PipeWire plugins) for dictation and the

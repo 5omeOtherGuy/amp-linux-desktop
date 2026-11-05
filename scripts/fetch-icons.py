@@ -2,7 +2,7 @@
 """Extracts the Amp app icons from Amp's own published macOS disk image into the user's data dir.
 
 The icons are Amp's artwork, so the repository does not carry them; this script takes them from
-https://static.ampcode.com/mac/latest.dmg at install time. It needs 7z (p7zip or 7zip) to open
+https://static.ampcode.com/mac/latest.dmg at install time. It needs 7z (the 7zip package) to open
 the disk image.
 """
 
@@ -36,7 +36,7 @@ def largest_png(icns):
 def main():
     sevenzip = shutil.which("7z") or shutil.which("7zz")
     if not sevenzip:
-        sys.exit("fetch-icons: install 7z (p7zip) to extract the icons from Amp's disk image")
+        sys.exit("fetch-icons: install 7z (7zip) to extract the icons from Amp's disk image")
     config.ICON_DIR.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         dmg = Path(tmp) / "amp.dmg"

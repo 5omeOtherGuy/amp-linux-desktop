@@ -10,7 +10,7 @@ python=/usr/bin/python3
 
 "$python" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1"); gi.require_version("WebKit", "6.0")' 2>/dev/null || {
 	echo "install: needs PyGObject with GTK 4, libadwaita and WebKitGTK 6.0:" >&2
-	echo "  Arch:   pacman -S python-gobject gtk4 libadwaita webkitgtk-6.0 p7zip" >&2
+	echo "  Arch:   pacman -S python-gobject gtk4 libadwaita webkitgtk-6.0 7zip" >&2
 	echo "  Debian: apt install python3-gi gir1.2-adw-1 gir1.2-webkit-6.0 7zip" >&2
 	exit 1
 }
