@@ -67,11 +67,15 @@ def on_color(bg):
 
 
 def _stand_out(selection, accent, under):
-    for step in range(13):
-        c = mix(selection, accent, step * 0.05)
-        if all(contrast(c, s) >= 1.2 for s in under):
-            return c
-    return mix(selection, accent, 0.6)
+    # Preserve the theme's hue where possible, but don't depend on its accent
+    # being distinguishable from its surfaces (white and vantablack, for example).
+    fallback = max(("#000000", "#ffffff"), key=lambda c: min(contrast(c, s) for s in under))
+    for target in (accent, fallback):
+        for step in range(21):
+            c = mix(selection, target, step * 0.05)
+            if all(contrast(c, s) >= 3 for s in under):
+                return c
+    return fallback
 
 
 def _readable(fg, bg, under):
@@ -117,7 +121,8 @@ def parse_colors(toml, has_light_mode_file):
         "windowBackground": dark_bg, "sidebarBackground": darker_bg,
         "controlBackground": lighter_bg, "controlHover": mix(lighter_bg, fg, 0.1),
         "mutedForeground": _readable(fg, bg, backgrounds), "border": muted,
-        "selection": _stand_out(color("selection", "color8") or bg, accent, backgrounds),
+        "selection": _stand_out(color("selection", "color8") or bg, accent,
+                                backgrounds + [lighter_bg, mix(lighter_bg, fg, 0.1)]),
         "accent": accent, "accentHover": mix_linear(accent, "#ffffff" if mode == "dark" else "#000000", 0.12),
         "accentForeground": on_color(accent), "destructive": red, "destructiveForeground": on_color(red),
         "success": color("green", "color2") or fg, "warning": color("yellow", "color3") or fg,
@@ -154,7 +159,14 @@ def palette_css(p):
     decls = "\n".join(f"\t--{k}: {v} !important;" for k, v in variables.items())
     system = ":root[data-amp-color-scheme='system']"
     return (f"{system},\n{system} :is(.scheme-light, .scheme-dark, [data-amp-content-theme]) {{\n"
-            f"\tcolor-scheme: {p['mode']} !important;\n}}\n{system},\n{system} * {{\n{decls}\n}}\n")
+            f"\tcolor-scheme: {p['mode']} !important;\n}}\n{system},\n{system} * {{\n{decls}\n}}\n"
+            # The page sets only selection backgrounds and otherwise retains syntax,
+            # link or muted text colors, which need not be readable on the highlight.
+            f"{system}::selection, {system} *::selection {{\n"
+            # WebKit darkens opaque selection colors. An explicit alpha avoids
+            # that adjustment and preserves the contrast.
+            f"\tbackground-color: {p['selection']}fe !important;\n"
+            f"\tcolor: {on_color(p['selection'])} !important;\n}}\n")
 
 
 def current_directory():
