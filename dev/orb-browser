@@ -1,0 +1,5 @@
+#!/bin/sh
+# Orb only: opens a URL as a new tab in the orb Desktop's managed Chrome (DevTools on :9222),
+# instead of a second, unconfigured Chrome that stops at its first-run dialog.
+url=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1")
+curl -sf -X PUT "http://127.0.0.1:9222/json/new?$url" >/dev/null

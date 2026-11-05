@@ -1,0 +1,43 @@
+#!/bin/sh
+# Installs Amp for Linux for the current user: a launcher, the desktop entry that also receives
+# the com.ampcode.amp.linux.auth sign-in callback, and the app icons.
+set -eu
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+data=${XDG_DATA_HOME:-$HOME/.local/share}
+bin=$HOME/.local/bin
+python=/usr/bin/python3
+
+"$python" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1"); gi.require_version("WebKit", "6.0")' 2>/dev/null || {
+	echo "install: needs PyGObject with GTK 4, libadwaita and WebKitGTK 6.0:" >&2
+	echo "  Arch:   pacman -S python-gobject gtk4 libadwaita webkitgtk-6.0 p7zip" >&2
+	echo "  Debian: apt install python3-gi gir1.2-adw-1 gir1.2-webkit-6.0 7zip" >&2
+	exit 1
+}
+
+mkdir -p "$bin" "$data/applications" "$data/icons/hicolor/512x512/apps"
+cat >"$bin/amp-linux-desktop" <<EOF
+#!/bin/sh
+cd "$root" && exec $python -m amp_native "\$@"
+EOF
+chmod +x "$bin/amp-linux-desktop"
+
+sed "s|@BIN@|$bin/amp-linux-desktop|g" "$root/data/dev.ampnative.Amp.desktop" >"$data/applications/dev.ampnative.Amp.desktop"
+
+# Huddles need the LiveKit SDK, since distribution WebKitGTK has no WebRTC. It goes next to the
+# app's data, outside the system's Python packages.
+huddle=$data/amp-native/python
+if command -v uv >/dev/null; then
+	uv pip install -q --python "$python" --target "$huddle" livekit
+else
+	"$python" -m pip install -q --target "$huddle" livekit
+fi || echo "install: continuing without Huddles (could not install the livekit package)" >&2
+
+"$python" "$root/scripts/fetch-icons.py" || echo "install: continuing without Amp's icons" >&2
+icon=$data/amp-native/icons/dark.png
+[ -f "$icon" ] && cp "$icon" "$data/icons/hicolor/512x512/apps/dev.ampnative.Amp.png"
+
+command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" || true
+command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t "$data/icons/hicolor" || true
+xdg-mime default dev.ampnative.Amp.desktop x-scheme-handler/com.ampcode.amp.linux.auth 2>/dev/null || true
+echo "install: done. Open Amp from your launcher or run amp-linux-desktop."

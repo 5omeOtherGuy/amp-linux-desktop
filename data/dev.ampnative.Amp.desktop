@@ -1,0 +1,24 @@
+[Desktop Entry]
+Name=Amp
+Comment=Amp, the frontier coding agent
+Exec=@BIN@ %U
+Terminal=false
+Type=Application
+Icon=dev.ampnative.Amp
+StartupWMClass=dev.ampnative.Amp
+MimeType=x-scheme-handler/com.ampcode.amp.linux.auth;
+Categories=Development;
+DBusActivatable=false
+Actions=new-thread;dictate-new-thread;toggle-puck;
+
+[Desktop Action new-thread]
+Name=New Thread
+Exec=@BIN@ --action new-thread
+
+[Desktop Action dictate-new-thread]
+Name=Dictate New Thread
+Exec=@BIN@ --action dictate-new-thread
+
+[Desktop Action toggle-puck]
+Name=Show Puck
+Exec=@BIN@ --action toggle-puck

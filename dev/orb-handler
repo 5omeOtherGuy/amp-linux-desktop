@@ -1,0 +1,7 @@
+#!/bin/sh
+# Orb only: the Desktop's Chrome runs with D-Bus disabled, so the sign-in callback it hands to
+# xdg-open would start a second Amp instead of reaching the running one. Join the Desktop's
+# session bus first, then forward the URL to the running instance.
+dev=$(cd "$(dirname "$0")" && pwd)
+. "$dev/desk-env.sh"
+cd "$dev/.." && exec /usr/bin/python3 -m amp_native "$@" >>/tmp/amp-native-handler.log 2>&1
