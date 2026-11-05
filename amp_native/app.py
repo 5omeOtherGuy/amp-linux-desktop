@@ -616,7 +616,7 @@ class AmpApplication(Adw.Application):
         if notification.get("interruptionLevel") == "passive":
             n.set_priority(Gio.NotificationPriority.LOW)
         if url:
-            n.set_default_action_and_target_value("app.open-url", GLib.Variant("s", url))
+            n.set_default_action_and_target("app.open-url", GLib.Variant("s", url))
         self.send_notification(collapse, n)
         return True
 
