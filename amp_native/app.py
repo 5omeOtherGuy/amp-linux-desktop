@@ -596,6 +596,8 @@ class AmpApplication(Adw.Application):
     def enable_notifications(self):
         self.settings.set("notifications", "authorized")
         for window in self.windows:
+            # The page reads the permission at every load, so later loads need it too.
+            window.reload_user_scripts()
             window.run_js(scripts.notification_permission("authorized"))
         if self.settings_window:
             self.settings_window.refresh_notifications()

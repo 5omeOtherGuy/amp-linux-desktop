@@ -107,16 +107,8 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
 
     def _make_webview(self):
         manager = WebKit.UserContentManager()
-        for source in self._user_scripts():
-            manager.add_script(
-                WebKit.UserScript.new(
-                    source,
-                    WebKit.UserContentInjectedFrames.TOP_FRAME,
-                    WebKit.UserScriptInjectionTime.START,
-                    ALLOW_LIST,
-                    None,
-                )
-            )
+        self._manager = manager
+        self.reload_user_scripts()
         manager.add_style_sheet(
             WebKit.UserStyleSheet.new(
                 scripts.LINUX_CSS,
@@ -126,7 +118,6 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
                 None,
             )
         )
-        self._manager = manager
         self.theme_sheet = None
         self.apply_host_css(view_ready=False)
         for name in HANDLERS:
@@ -175,6 +166,20 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
             scripts.OPEN_IN_NEW_WINDOW,
             scripts.CLIPBOARD,
         ] + ([scripts.HUDDLE] if huddle.available() else []) + ([scripts.runner_state(self.app.runner.runner_id)] if self.app.runner.running else [])
+
+    def reload_user_scripts(self):
+        """Builds the user scripts from the current settings; they apply from the next page load."""
+        self._manager.remove_all_scripts()
+        for source in self._user_scripts():
+            self._manager.add_script(
+                WebKit.UserScript.new(
+                    source,
+                    WebKit.UserContentInjectedFrames.TOP_FRAME,
+                    WebKit.UserScriptInjectionTime.START,
+                    ALLOW_LIST,
+                    None,
+                )
+            )
 
     def _background_rgba(self):
         rgba = Gdk.RGBA()
