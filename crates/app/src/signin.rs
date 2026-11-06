@@ -132,7 +132,7 @@ impl SignIn {
         window.window.present();
         if let (Some(code), Some(flow), 3) = (query.get("code"), query.get("flow"), query.len()) {
             let body = json!({"code": code, "flow": flow, "verifier": pending.verifier}).to_string();
-            window.run_js(&format!(
+            let script = format!(
                 r#"
 (async () => {{
   const response = await fetch('/auth/app/redeem', {{
@@ -145,7 +145,31 @@ impl SignIn {
 }})();
 "#,
                 json!(body)
-            ));
+            );
+            let loaded = !window.webview.is_loading()
+                && window.webview.uri().is_some_and(|uri| uri.starts_with(APP_URL.as_str()));
+            if !loaded {
+                // A window opened for the callback (Amp had none) has no ampcode.com page yet, so
+                // the relative fetch would fail and waste the single-use code: redeem once its
+                // page has loaded.
+                let handler = Rc::new(RefCell::new(None));
+                let slot = handler.clone();
+                let weak = Rc::downgrade(&window);
+                let id = window.webview.connect_load_changed(move |view, event| {
+                    if event != webkit::LoadEvent::Finished {
+                        return;
+                    }
+                    if let Some(id) = slot.borrow_mut().take() {
+                        view.disconnect(id);
+                    }
+                    if let Some(window) = weak.upgrade() {
+                        window.run_js(&script);
+                    }
+                });
+                *handler.borrow_mut() = Some(id);
+            } else {
+                window.run_js(&script);
+            }
         } else {
             window.load_path("/");
         }
