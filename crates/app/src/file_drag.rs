@@ -195,6 +195,10 @@ impl Transfer {
     }
 
     async fn read_all(&self) -> Result<PathBuf, String> {
+        // A drag cancelled before this fetch ran has had its folder removed; do not create it again.
+        if self.outcome.get() == Some(false) {
+            return Err("the drag was cancelled".into());
+        }
         std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&self.dir).map_err(|e| e.to_string())?;
         let mut file = std::fs::File::create(&self.path).map_err(|e| e.to_string())?;
         let mut offset: u64 = 0;
