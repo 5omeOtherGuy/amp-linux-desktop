@@ -1,7 +1,7 @@
 //! One room connection. The LiveKit SDK runs on its own tokio runtime and reports to the window as
 //! [`Event`]s; the window controls it with [`Command`]s.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
@@ -199,7 +199,24 @@ pub async fn run(
     let mut options = RoomOptions::default();
     options.auto_subscribe = true;
     options.dynacast = true;
-    let (room, mut room_events) = match Room::connect(&server_url, &token, options).await {
+    // Commands that arrive while joining wait here; a Leave stops the join before it publishes
+    // anything.
+    let mut pending = VecDeque::new();
+    let connect = Room::connect(&server_url, &token, options);
+    tokio::pin!(connect);
+    let joined = loop {
+        tokio::select! {
+            joined = &mut connect => break joined,
+            command = commands.recv() => match command {
+                Some(Command::Leave) | None => {
+                    send(Event::Left);
+                    return;
+                }
+                Some(command) => pending.push_back(command),
+            },
+        }
+    };
+    let (room, mut room_events) = match joined {
         Ok(connected) => connected,
         Err(error) => {
             log::warn!("huddle join failed: {error}");
@@ -230,7 +247,9 @@ pub async fn run(
     // Media problems leave the call up, as the page does ("Some media features are unavailable").
     let mut problems = Vec::new();
     let mut media = Media { _audio: None, mic: None, camera: None, camera_track: None, video_source: None };
+    let mut leaving = left(&mut commands, &mut pending);
     match PlatformAudio::new() {
+        _ if leaving => {}
         Ok(audio) => {
             let mic = LocalAudioTrack::create_audio_track("microphone", audio.rtc_source());
             let options = TrackPublishOptions { source: TrackSource::Microphone, ..Default::default() };
@@ -250,47 +269,64 @@ pub async fn run(
             problems.push("microphone");
         }
     }
-    if let Err(error) = start_camera(&mut media, &local, &events).await {
-        log::info!("huddle camera unavailable: {error}");
-        if error != "No camera found" {
-            problems.push("camera");
+    leaving = leaving || left(&mut commands, &mut pending);
+    if !leaving {
+        if let Err(error) = start_camera(&mut media, &local, &events).await {
+            log::info!("huddle camera unavailable: {error}");
+            if error != "No camera found" {
+                problems.push("camera");
+            }
         }
+        let problem = (!problems.is_empty()).then(|| format!("Your {} isn’t available.", problems.join(" and ")));
+        send(media_changed(&media, problem));
     }
-    let problem = (!problems.is_empty()).then(|| format!("Your {} isn’t available.", problems.join(" and ")));
-    send(media_changed(&media, problem));
 
     let mut room_open = true;
     loop {
-        tokio::select! {
-            event = room_events.recv(), if room_open => match event {
-                Some(event) => handle_room_event(event, &mut streams, &events),
-                None => room_open = false,
-            },
-            command = commands.recv() => match command {
-                Some(Command::SetMicrophone(enabled)) => {
-                    if let Some(mic) = &media.mic {
-                        if enabled { mic.unmute() } else { mic.mute() }
+        if leaving {
+            break;
+        }
+        let command = match pending.pop_front() {
+            Some(command) => Some(command),
+            None => tokio::select! {
+                event = room_events.recv(), if room_open => {
+                    match event {
+                        Some(event) => handle_room_event(event, &mut streams, &events),
+                        None => room_open = false,
                     }
-                    send(media_changed(&media, None));
+                    continue;
                 }
-                Some(Command::SetCamera(enabled)) => {
-                    let mut problem = None;
-                    if enabled && media.camera.is_none() {
-                        if let Err(error) = start_camera(&mut media, &local, &events).await {
-                            log::warn!("huddle camera failed: {error}");
-                            problem = Some(if error == "No camera found" { "No camera found.".to_string() } else { format!("Camera failed: {error}") });
-                        }
-                    } else if !enabled && media.camera.is_some() {
-                        media.camera = None;
-                        if let Some(track) = &media.camera_track {
-                            track.mute();
-                        }
-                        send(Event::VideoEnded(LOCAL.into()));
-                    }
-                    send(media_changed(&media, problem));
-                }
-                Some(Command::Leave) | None => break,
+                command = commands.recv() => command,
             },
+        };
+        match command {
+            Some(Command::SetMicrophone(enabled)) => {
+                if let Some(mic) = &media.mic {
+                    if enabled { mic.unmute() } else { mic.mute() }
+                }
+                send(media_changed(&media, None));
+            }
+            Some(Command::SetCamera(enabled)) => {
+                let mut problem = None;
+                if enabled && media.camera.is_none() {
+                    if let Err(error) = start_camera(&mut media, &local, &events).await {
+                        log::warn!("huddle camera failed: {error}");
+                        problem = Some(if error == "No camera found" {
+                            "No camera found.".to_string()
+                        } else {
+                            format!("Camera failed: {error}")
+                        });
+                    }
+                } else if !enabled && media.camera.is_some() {
+                    media.camera = None;
+                    if let Some(track) = &media.camera_track {
+                        track.mute();
+                    }
+                    send(Event::VideoEnded(LOCAL.into()));
+                }
+                send(media_changed(&media, problem));
+            }
+            Some(Command::Leave) | None => break,
         }
     }
     media.camera = None;
@@ -302,6 +338,17 @@ pub async fn run(
     }
     drop(media);
     send(Event::Left);
+}
+
+/// Moves the commands that arrived meanwhile to `pending`; true when one of them leaves the call.
+fn left(commands: &mut mpsc::UnboundedReceiver<Command>, pending: &mut VecDeque<Command>) -> bool {
+    loop {
+        match commands.try_recv() {
+            Ok(Command::Leave) | Err(mpsc::error::TryRecvError::Disconnected) => return true,
+            Ok(command) => pending.push_back(command),
+            Err(mpsc::error::TryRecvError::Empty) => return false,
+        }
+    }
 }
 
 fn media_changed(media: &Media, problem: Option<String>) -> Event {
