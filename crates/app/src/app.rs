@@ -49,6 +49,9 @@ pub struct App {
     /// Whether a local project import folder chooser is open.
     pub browsing: Cell<bool>,
     dictation_available: OnceCell<bool>,
+    /// Keeps Amp running with no window open, as the Mac app stays in the Dock; the tray, the
+    /// launcher and `--action show` bring the window back, and Quit ends it.
+    keep_running: OnceCell<gio::ApplicationHoldGuard>,
 }
 
 pub fn run() -> std::process::ExitCode {
@@ -81,6 +84,7 @@ pub fn run() -> std::process::ExitCode {
         save_transfer: RefCell::default(),
         browsing: Cell::new(false),
         dictation_available: OnceCell::new(),
+        keep_running: OnceCell::new(),
     });
     let names: Vec<&str> = GLOBAL_COMMANDS.iter().map(|(n, _)| *n).collect();
     adw.add_main_option(
@@ -146,6 +150,7 @@ impl App {
         self.add_actions();
         self.update_actions();
         self.tray.start(self);
+        let _ = self.keep_running.set(self.adw.hold());
         if self.settings.bool("runner_enabled") {
             self.runner.apply(self);
         }
