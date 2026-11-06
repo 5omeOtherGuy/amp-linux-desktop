@@ -202,6 +202,11 @@ pub fn notification_permission(permission: &str) -> String {
     )
 }
 
+/// Where the page opens Puck: "currentWindow" in the window, anything else in the Puck window.
+pub fn puck_opening(opening: &str) -> String {
+    format!("document.documentElement.dataset.ampNativePuckOpening = {};", json!(opening))
+}
+
 pub fn runner_state(runner_id: Option<&str>) -> String {
     let body = match runner_id {
         Some(id) => format!("document.documentElement.dataset.ampMacRunnerId = {};", json!(id)),

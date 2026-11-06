@@ -52,7 +52,7 @@ headless session has no AT-SPI bus). Drive the way a user does:
 
 - `agent-desktop click ampv-RUN X Y`, `type`, `key ctrl+n`, `scroll`, `move`: coordinates are pixels in the latest screenshot. Always take a screenshot and look at it (view_media / Read) before clicking; layouts differ by window size and scale.
 - With `--scale` other than 1, only `click`/`move`/`drag` take screenshot pixels. Window sizes from `launch` and `agent-desktop windows`, and regions for `grim -g` or `shot --region`, are logical pixels (screenshot pixels ÷ scale: a 1600×999 PNG is a 1066×666 window at 1.5). To keep a detail, crop the full screenshot instead.
-- `verify-amp app RUN --action new-thread` runs a desktop-wide command against the running instance (names: `show`, `new-thread`, `dictate-new-thread`, `toggle-puck`, `puck-voice`). It starts detached and returns at once.
+- `verify-amp app RUN --action new-thread` runs a desktop-wide command against the running instance (names: `show`, `new-thread`, `dictate-new-thread`, `toggle-puck`, `puck-voice`, `puck-window`). It starts detached and returns at once.
 - Restart the app inside the same session: `agent-desktop key ampv-RUN ctrl+q`, then `verify-amp app RUN` with no arguments, then wait about 10 s and screenshot.
 - `agent-desktop swaymsg ampv-RUN '[app_id=dev.ampnative.Amp] fullscreen enable'` gives one big window.
 - Navigate to a thread by clicking it in the sidebar. A thread URL on the command line opens it in a second window.

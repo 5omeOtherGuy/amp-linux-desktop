@@ -154,11 +154,16 @@ fn on_message(window: &Rc<AmpWindow>, name: &str, body: &Value) {
             let path = body.as_str().or_else(|| {
                 ["url", "path"].iter().find_map(|k| body.get(*k).and_then(Value::as_str).filter(|p| !p.is_empty()))
             });
-            if let Some(path) = path.filter(|p| !p.is_empty())
-                && let Some(main) = app.main_window()
-            {
-                main.navigate(path);
-                main.window.present();
+            if let Some(path) = path.filter(|p| !p.is_empty()) {
+                match app.main_window() {
+                    Some(main) => {
+                        main.navigate(path);
+                        main.window.present();
+                    }
+                    None => {
+                        app.open_window(path, None);
+                    }
+                }
             }
         }
         "ampNativeAppSettings" => app.show_app_settings(body.get("tab").and_then(Value::as_str)),
@@ -239,11 +244,8 @@ fn on_message(window: &Rc<AmpWindow>, name: &str, body: &Value) {
             }
         }
         "ampNativeTogglePuckWindow" => match puck_window(&app) {
-            None => {
-                app.open_window(&puck_path(body), Some("puck"));
-            }
-            Some(puck) if Rc::ptr_eq(&puck, window) || puck.window.is_active() => puck.window.close(),
-            Some(puck) => puck.window.present(),
+            Some(puck) if Rc::ptr_eq(&puck, window) => puck.window.close(),
+            _ => toggle_puck_window(&app, Some(&puck_path(body))),
         },
         _ => {}
     }
@@ -364,6 +366,17 @@ fn puck_path(body: &Value) -> String {
     match body.as_str() {
         Some(path) if path == PUCK_PATH || path.starts_with(&format!("{PUCK_PATH}/")) => path.to_string(),
         _ => PUCK_PATH.to_string(),
+    }
+}
+
+/// Opens the Puck window (at `path`, else Puck's start), shows it, or closes it when it has focus.
+pub fn toggle_puck_window(app: &Rc<App>, path: Option<&str>) {
+    match puck_window(app) {
+        None => {
+            app.open_window(path.unwrap_or(PUCK_PATH), Some("puck"));
+        }
+        Some(puck) if puck.window.is_active() => puck.window.close(),
+        Some(puck) => puck.window.present(),
     }
 }
 

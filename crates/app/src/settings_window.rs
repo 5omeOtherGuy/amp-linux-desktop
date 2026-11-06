@@ -221,6 +221,21 @@ impl SettingsWindow {
                 app.set_zoom(config::ZOOM_FACTORS[i as usize]);
             }
         }));
+        let openings = vec![
+            ("currentWindow", "In Current Window".to_string()),
+            ("separateWindow", "In Separate Window".to_string()),
+        ];
+        let current = if s.str("puck_opening") == "currentWindow" { "currentWindow" } else { "separateWindow" };
+        let weak = Rc::downgrade(app);
+        g.add(&combo_row("Open Puck", openings, &current, move |v| {
+            if let Some(app) = weak.upgrade() {
+                app.settings.set("puck_opening", json!(v));
+                for window in app.windows() {
+                    window.reload_user_scripts();
+                    window.run_js(&amp_common::scripts::puck_opening(v));
+                }
+            }
+        }));
         let mut groups = vec![g];
 
         let icons: Vec<(&str, &str, std::path::PathBuf)> =

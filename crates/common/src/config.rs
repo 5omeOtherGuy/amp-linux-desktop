@@ -122,6 +122,7 @@ fn defaults() -> Map<String, Value> {
         "appearance": "system",
         "zoom": 1.0,
         "app_icon": "dark",
+        "puck_opening": "separateWindow",
         "notifications": "notDetermined",
         "runner_enabled": false,
         "runner_name": runner_name,
