@@ -21,14 +21,19 @@ jobs:
     container: debian:trixie
     steps:
       - run: |
+          # libwebrtc needs clang 21 or later (webrtc-sys checks); trixie has it in backports.
+          echo "deb http://deb.debian.org/debian trixie-backports main" >/etc/apt/sources.list.d/backports.list
           apt-get update -qq
-          apt-get install -y -qq git lintian gh rustup clang pkg-config dpkg-dev libgtk-4-dev libadwaita-1-dev \
+          apt-get install -y -qq git lintian gh rustup clang-21 pkg-config dpkg-dev libgtk-4-dev libadwaita-1-dev \
             libwebkitgtk-6.0-dev libsoup-3.0-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libsqlite3-dev libva-dev
           rustup default stable
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag || github.ref }}
       - name: Build and check
+        env:
+          CC: clang-21
+          CXX: clang++-21
         run: |
           packaging/debian/build-deb dist
           lintian --fail-on error --suppress-tags no-manual-page,initial-upload-closes-no-bugs dist/*.deb

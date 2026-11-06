@@ -3,6 +3,10 @@
 %global webrtc webrtc-a545de4
 # The release profile carries no debug info to split out.
 %global debug_package %{nil}
+# webrtc-sys compiles its C++ bridge with clang only (libwebrtc uses Chromium's libc++); the
+# default toolchain exports CXX=g++. LTO objects would not link through rustc, as on Arch (!lto).
+%global toolchain clang
+%global _lto_cflags %{nil}
 
 Name:           amp-linux-desktop
 Version:        0.1.1

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds amp-linux-desktop_VERSION-1_ARCH.deb from this checkout into OUTDIR. Runs on Debian or
-# Ubuntu with cargo, clang and the -dev packages the release workflow installs; CI runs it in a
-# debian:trixie container.
+# Ubuntu with cargo, clang 21 or later (CC and CXX pointing at it when the default clang is older),
+# and the -dev packages the release workflow installs; CI runs it in a debian:trixie container.
 #   packaging/debian/build-deb OUTDIR
 # Amp's icons are not in the package: the app fetches them on first start (crates/common/src/icons.rs).
 set -eu
