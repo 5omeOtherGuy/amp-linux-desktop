@@ -634,15 +634,17 @@ impl App {
     }
 
     /// Runs a menu shortcut before the page sees the key, as AppKit's key equivalents do.
-    pub fn handle_shortcut(
-        self: &Rc<Self>,
-        window: &Rc<AmpWindow>,
-        keyval: gdk::Key,
-        keycode: u32,
-        state: gdk::ModifierType,
-    ) -> bool {
+    pub fn handle_shortcut(self: &Rc<Self>, window: &Rc<AmpWindow>, event: &gdk::KeyEvent) -> bool {
         let display = gtk::prelude::WidgetExt::display(&window.window);
-        let Some(action) = self.menus().shortcut_for(&display, keyval, keycode, state) else { return false };
+        let Some(action) = self.menus().shortcut_for(
+            &display,
+            event.keyval(),
+            event.keycode(),
+            event.modifier_state(),
+            event.consumed_modifiers(),
+        ) else {
+            return false;
+        };
         if action == "app.quit" && self.settings.bool("warn_before_quitting") {
             self.hold_to_quit(window);
             return true;

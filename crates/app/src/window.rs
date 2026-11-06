@@ -552,7 +552,7 @@ impl AmpWindow {
         let keys = gtk::EventControllerKey::new();
         keys.set_propagation_phase(gtk::PropagationPhase::Capture);
         let weak = Rc::downgrade(self);
-        keys.connect_key_pressed(move |_, keyval, keycode, state| {
+        keys.connect_key_pressed(move |controller, keyval, _, state| {
             let Some(this) = weak.upgrade() else { return glib::Propagation::Proceed };
             this.alt_alone.set(
                 matches!(keyval, gdk::Key::Alt_L | gdk::Key::Alt_R)
@@ -562,8 +562,10 @@ impl AmpWindow {
                 this.menu_revealer.set_reveal_child(false);
                 return glib::Propagation::Stop;
             }
+            let event =
+                controller.current_event().expect("key press event").downcast::<gdk::KeyEvent>().expect("key event");
             match this.app() {
-                Some(app) if app.handle_shortcut(&this, keyval, keycode, state) => glib::Propagation::Stop,
+                Some(app) if app.handle_shortcut(&this, &event) => glib::Propagation::Stop,
                 _ => glib::Propagation::Proceed,
             }
         });

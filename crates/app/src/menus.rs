@@ -261,11 +261,13 @@ impl Menus {
         keyval: gdk::Key,
         keycode: u32,
         state: gdk::ModifierType,
+        consumed: gdk::ModifierType,
     ) -> Option<&'static str> {
         let mods = state & gtk::accelerator_get_default_mod_mask();
         for shortcut in &self.shortcuts {
-            // A shifted symbol such as "?" or "+" already includes Shift in its keyval.
+            // Ignore Shift for a symbol only when the keymap used it to produce that symbol.
             let symbol = keyval == shortcut.key
+                && consumed.contains(gdk::ModifierType::SHIFT_MASK)
                 && keyval.into_glib() < 0x100
                 && !char::from_u32(keyval.into_glib()).is_some_and(char::is_alphabetic);
             let wanted = if symbol { mods - gdk::ModifierType::SHIFT_MASK } else { mods };
@@ -292,3 +294,32 @@ impl Menus {
 }
 
 use glib::translate::IntoGlib;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn settings_shortcuts_preserve_unconsumed_shift() {
+        gtk::init().expect("run with a display, e.g. agent-desktop exec SESSION -- cargo test");
+        let display = gdk::Display::default().expect("display");
+        let menus = Menus::new();
+        let ctrl = gdk::ModifierType::CONTROL_MASK;
+        let shift = gdk::ModifierType::SHIFT_MASK;
+        let alt = gdk::ModifierType::ALT_MASK;
+        let none = gdk::ModifierType::empty();
+        for (key, mods, consumed, action) in [
+            (gdk::Key::comma, ctrl, none, Some("win.personal-settings")),
+            (gdk::Key::comma, ctrl | alt, none, Some("win.workspace-settings")),
+            (gdk::Key::comma, ctrl | shift, none, Some("app.app-settings")),
+            (gdk::Key::comma, ctrl | alt | shift, none, None),
+            (gdk::Key::question, ctrl | shift, shift, Some("win.keyboard-shortcuts")),
+            (gdk::Key::plus, ctrl | shift, shift, Some("app.zoom-in")),
+        ] {
+            assert_eq!(menus.shortcut_for(&display, key, 0, mods, consumed), action, "{key:?} {mods:?}");
+        }
+        // A real US keymap produces '<' on the physical comma key with Shift held.
+        let comma = display.map_keyval(gdk::Key::comma).expect("comma in keymap")[0].keycode();
+        assert_eq!(menus.shortcut_for(&display, gdk::Key::less, comma, ctrl | shift, shift), Some("app.app-settings"));
+    }
+}
