@@ -25,7 +25,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use amp_common::config::{PATHS, Settings, strings, truthy};
-use gtk::glib;
+use gtk::{gio, glib};
 use serde_json::{Value, json};
 
 use crate::app::App;
@@ -47,10 +47,9 @@ const RESTART_WINDOW: Duration = Duration::from_secs(120);
 
 fn fatal_message(code: &str) -> Option<&'static str> {
     Some(match code {
-        "not_logged_in" => {
-            "The Amp CLI is not signed in on this computer. Run amp login, then turn the runner on again."
-        }
-        "credentials_rejected" => "Amp rejected the CLI’s sign-in. Run amp login again.",
+        // The settings offer Sign In… next to these two.
+        "not_logged_in" => "The Amp CLI is not signed in on this computer.",
+        "credentials_rejected" => "Amp rejected the Amp CLI’s sign-in. Sign in again.",
         "runner_id_in_use" => "Another live runner uses this Runner ID. Rename one so this app’s runner can start.",
         "feature_not_enabled" => "Running threads on your own computer is not enabled for your account.",
         _ => return None,
@@ -145,6 +144,12 @@ pub struct Runner {
     fatal: RefCell<Option<(Option<String>, Option<String>)>>,
     rejected_flag: RefCell<Option<String>>,
     synced: Cell<bool>,
+    /// The CLI stopped because it is not signed in, or Amp rejected its sign-in.
+    needs_login: Cell<bool>,
+    /// `amp login` is running; the code it asks to confirm in the browser, once it printed it.
+    signing_in: RefCell<Option<Option<String>>>,
+    /// The `amp login` process while it runs, to end it when Amp quits.
+    login_pid: Cell<Option<u32>>,
     /// Being removed now; not to be adopted back.
     removing: RefCell<BTreeSet<String>>,
     output: RefCell<Option<async_channel::Sender<Output>>>,
@@ -185,8 +190,19 @@ impl Runner {
         }
     }
 
+    /// Whether the settings offer Sign In…: the CLI needs a login and none is running.
+    pub fn needs_login(&self) -> bool {
+        self.needs_login.get() && self.signing_in.borrow().is_none()
+    }
+
     /// One line for the settings: what the runner is doing or why it stopped.
     pub fn summary(&self, settings: &Settings) -> String {
+        if let Some(code) = self.signing_in.borrow().as_ref() {
+            return match code {
+                Some(code) => format!("Signing in… Confirm the code {code} in your browser."),
+                None => "Signing in…".into(),
+            };
+        }
         if let Some(error) = self.last_error.borrow().as_ref() {
             return error.clone();
         }
@@ -302,6 +318,7 @@ impl Runner {
         *self.fatal.borrow_mut() = None;
         *self.rejected_flag.borrow_mut() = None;
         self.synced.set(false);
+        self.needs_login.set(false);
         self.removing.borrow_mut().clear();
         self.directories.borrow_mut().clear();
         let Some(args) = self.command(&app.settings) else {
@@ -440,9 +457,12 @@ impl Runner {
             return;
         }
         if let Some((code_name, message)) = self.fatal.borrow().clone() {
-            let message = message
-                .filter(|m| !m.is_empty())
-                .or_else(|| code_name.as_deref().and_then(fatal_message).map(String::from))
+            self.needs_login.set(matches!(code_name.as_deref(), Some("not_logged_in" | "credentials_rejected")));
+            // The CLI's own text for these asks to run amp login; the settings' Sign In… does that.
+            let ours = code_name.as_deref().and_then(fatal_message).map(String::from);
+            let message = if self.needs_login.get() { ours.clone() } else { None }
+                .or(message.filter(|m| !m.is_empty()))
+                .or(ours)
                 .unwrap_or_else(|| "The runner stopped.".into());
             *self.last_error.borrow_mut() = Some(message);
             *self.state.borrow_mut() = "off".into();
@@ -628,6 +648,95 @@ impl Runner {
                 std::thread::spawn(move || child.wait());
             }
         }
+    }
+
+    // ---- CLI sign-in -----------------------------------------------------------------------
+
+    /// Signs the CLI in, as the Mac's Sign In… does: runs `amp login`, which opens its page in the
+    /// browser itself, shows the code that page asks to confirm, and starts the runner again once
+    /// the login succeeded.
+    pub fn sign_in(&self, app: &Rc<App>) {
+        if self.signing_in.borrow().is_some() {
+            return;
+        }
+        let Some(cli) = find_cli() else {
+            self.install_cli(app);
+            return;
+        };
+        log("running amp login");
+        let spawned = new_session(Command::new(cli).arg("login"))
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn();
+        let mut child = match spawned {
+            Ok(child) => child,
+            Err(error) => {
+                *self.last_error.borrow_mut() = Some(format!("amp login could not be started: {error}"));
+                app.runner_changed();
+                return;
+            }
+        };
+        *self.signing_in.borrow_mut() = Some(None);
+        self.login_pid.set(Some(child.id()));
+        app.runner_changed();
+        let (sender, receiver) = async_channel::unbounded::<String>();
+        for stream in [
+            child.stdout.take().map(|s| Box::new(s) as Box<dyn Read + Send>),
+            child.stderr.take().map(|s| Box::new(s) as Box<dyn Read + Send>),
+        ] {
+            let sender = sender.clone();
+            std::thread::spawn(move || {
+                for line in stream.map(BufReader::new).into_iter().flat_map(|r| r.lines().map_while(Result::ok)) {
+                    append_log(&line);
+                    let _ = sender.send_blocking(line);
+                }
+            });
+        }
+        drop(sender);
+        let weak = Rc::downgrade(app);
+        glib::spawn_future_local(async move {
+            while let Ok(line) = receiver.recv().await {
+                let Some(app) = weak.upgrade() else { return };
+                let code = line
+                    .split_whitespace()
+                    .filter_map(|word| url::Url::parse(word).ok())
+                    .find_map(|u| u.query_pairs().find(|(k, _)| k == "user_code").map(|(_, v)| v.into_owned()));
+                if code.is_some() && app.runner.signing_in.borrow().as_ref().is_some_and(Option::is_none) {
+                    *app.runner.signing_in.borrow_mut() = Some(code);
+                    app.runner_changed();
+                }
+            }
+            let code =
+                gio::spawn_blocking(move || child.wait().ok().and_then(|s| s.code()).unwrap_or(-1)).await.unwrap_or(-1);
+            let Some(app) = weak.upgrade() else { return };
+            app.runner.signed_in(&app, code);
+        });
+    }
+
+    /// Ends a sign-in still waiting for the browser, as Amp quits.
+    pub fn cancel_sign_in(&self) {
+        if let Some(pid) = self.login_pid.take() {
+            // SAFETY: kill only signals the login's pid, which has not been reaped yet.
+            unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+        }
+    }
+
+    fn signed_in(&self, app: &Rc<App>, code: i32) {
+        log(&format!("amp login exited with {code}"));
+        self.signing_in.borrow_mut().take();
+        self.login_pid.set(None);
+        if code == 0 {
+            self.needs_login.set(false);
+            if app.settings.bool("runner_enabled") {
+                self.start(app);
+                return;
+            }
+            *self.last_error.borrow_mut() = None;
+        } else {
+            *self.last_error.borrow_mut() = Some("The Amp CLI did not finish signing in. Try again.".into());
+        }
+        app.runner_changed();
     }
 
     // ---- CLI install -----------------------------------------------------------------------

@@ -84,6 +84,8 @@ pub struct SettingsWindow {
     /// The Runner tab's other switches with their settings.
     runner_switches: RefCell<Vec<(&'static str, gtk::Switch)>>,
     runner_status: adw::ActionRow,
+    /// The Mac's Sign In… for a CLI that is not signed in.
+    runner_sign_in: gtk::Button,
     network_group: adw::PreferencesGroup,
     discover_row: adw::ActionRow,
     new_dirs_row: adw::ActionRow,
@@ -116,6 +118,7 @@ impl SettingsWindow {
                 .build(),
             runner_switches: RefCell::default(),
             runner_status: adw::ActionRow::builder().title("Use This Computer as a Runner").build(),
+            runner_sign_in: gtk::Button::builder().label("Sign In…").valign(gtk::Align::Center).visible(false).build(),
             network_group: group(None, None),
             discover_row: adw::ActionRow::builder().title("All Projects Under Directories").build(),
             new_dirs_row: adw::ActionRow::builder().title("New Projects Folder").build(),
@@ -442,6 +445,13 @@ impl SettingsWindow {
                 this.runner_setting("runner_enabled", json!(sw.is_active()));
             }
         });
+        let weak = Rc::downgrade(app);
+        self.runner_sign_in.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.runner.sign_in(&app);
+            }
+        });
+        self.runner_status.add_suffix(&self.runner_sign_in);
         self.runner_status.add_suffix(&self.runner_switch);
         self.runner_status.set_activatable_widget(Some(&self.runner_switch));
         g.add(&self.runner_status);
@@ -616,6 +626,7 @@ impl SettingsWindow {
             subtitle
         };
         self.runner_status.set_subtitle(&glib::markup_escape_text(&subtitle));
+        self.runner_sign_in.set_visible(settings.bool("runner_enabled") && app.runner.needs_login());
         let net = app.main_window().is_some_and(|m| m.app_state.borrow().get("ampNetEnabled").is_some_and(truthy));
         self.network_group.set_visible(net);
         self.refresh_runner_paths();

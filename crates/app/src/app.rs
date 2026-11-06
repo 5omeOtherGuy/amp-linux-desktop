@@ -191,6 +191,7 @@ impl App {
             }
         }
         self.runner.stop();
+        self.runner.cancel_sign_in();
     }
 
     fn handle_local_options(self: &Rc<Self>, options: &glib::VariantDict) -> std::ops::ControlFlow<glib::ExitCode> {
