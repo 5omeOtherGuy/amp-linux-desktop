@@ -20,7 +20,7 @@ Preconditions:
 - Signed-in launch; `pacman -Q gst-libav` succeeds.
 - An orb thread of this project whose orb is already awake, or the task allows waking one (the pane then shows `Orb Is Asleep` with a `Wake Orb` button).
 
-- **Open.** Click the orb thread in the sidebar, then `Desktop`. It shows `Starting desktop` first: opening it starts the orb's desktop. `verify-amp shot RUN desktop-tab` after 15 s. The pane shows the remote desktop, not `Still working` or `Desktop Unavailable`. Take a second screenshot later: a changed frame proves the stream is live.
+- **Open.** Click the orb thread in the sidebar, then `Desktop`. If the orb's desktop is not running yet it shows `Starting desktop` first: opening it starts the desktop. `verify-amp shot RUN desktop-tab` after 15 s. The pane shows the remote desktop, not `Still working` or `Desktop Unavailable`. Take a second screenshot later: a changed frame proves the stream is live. Identical frames only mean the remote screen did not change; report the stream as not proven live rather than passing it.
 - **Terminal.** Open `Terminal`, wait 10 s, `verify-amp shot RUN terminal-tab`. The prompt is visible.
 - **Close.** Close each pane with its own close button. Check the target in the screenshot first; see the banner gotcha.
 - **No WebRTC regression.** The app log records nothing about the transport, so the screenshots are the proof. If the tab hangs at `Still working`, the page's transport code changed and the `NO_WEBRTC` script in `amp_native/scripts.py` no longer matches.

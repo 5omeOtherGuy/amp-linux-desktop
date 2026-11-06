@@ -104,7 +104,7 @@ logs)
 	;;
 cleanup)
 	mkdir -p "$evidence"
-	cp "$scratch/cache/amp-native/amp-native.log" "$scratch/cache/amp-native/"stderr*.log "$evidence/" 2>/dev/null || true
+	cp "$scratch/cache/amp-native/"*.log "$evidence/" 2>/dev/null || true
 	agent-desktop stop "$session" >/dev/null 2>&1 || true
 	rm -rf "$scratch"
 	echo "stopped $session, removed $scratch; evidence kept in $evidence"

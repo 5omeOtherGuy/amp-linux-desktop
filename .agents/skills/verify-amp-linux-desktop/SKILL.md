@@ -62,7 +62,7 @@ headless session has no AT-SPI bus). Drive the way a user does:
 ## Evidence
 
 Everything goes to `.amp/in/artifacts/verify/RUN/` (git-ignored through the repo's info/exclude):
-`verify-amp shot RUN NAME` writes `NAME.png` there, and cleanup copies the app log and the stderr logs there.
+`verify-amp shot RUN NAME` writes `NAME.png` there, and cleanup copies every `*.log` from the run's `cache/amp-native/` there (app log, stderr logs, and any monitor log you wrote into that folder).
 
 Proof standard:
 - Drive the user path (click, type, the launcher command), not internal calls or injected JS.
@@ -78,7 +78,7 @@ Proof standard:
 - Do not send SIGUSR1/SIGUSR2 to anything that loads WebKitGTK: JavaScriptCore uses SIGUSR1 internally and crashes.
 - Do not kill by name (`pkill -f amp_native` also matches the owner's app and your own shell).
 - Do not wake orbs or start Mac satellites (billable) unless the task asks for that feature. Opening an orb thread's Desktop view starts that orb's desktop, and the Mac view may start a satellite.
-- Do not click action buttons in page banners, such as `Investigate in New Orb` under "Orb Setup Has Been Slow" on orb threads: they start threads and orbs in the owner's account. Close the views you opened with their own close buttons and check each click target in the screenshot first.
+- Do not click action buttons in page banners, such as `Investigate in New Orb` under "Orb Setup Has Been Slow" on orb threads, or `Set Up with Amp` / `Docs` / `Dismiss` in the new-thread overlay's "Set Up Orbs" banner: they start threads and orbs or change the owner's account. Do not click Puck's green call button (starts a voice call). Close the views you opened with their own close buttons and check each click target in the screenshot first.
 
 ## Cleanup
 
