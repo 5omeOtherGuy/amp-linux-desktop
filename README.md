@@ -82,11 +82,18 @@ build 1125 (`https://static.ampcode.com/mac/Amp-1.0-1125.dmg`, 2026-11-06). The 
 
 ### Arch Linux
 
-The AUR package `amp-linux-desktop` installs the app for all users. On Omarchy:
+The package in `packaging/arch` installs the app for all users. It is not on the AUR yet, because
+the AUR has paused new account registrations. Until it is, build and install it from this
+repository:
 
 ```sh
-omarchy pkg aur add amp-linux-desktop
+git clone https://github.com/5omeOtherGuy/amp-linux-desktop.git
+cd amp-linux-desktop/packaging/arch
+makepkg -si
 ```
+
+`makepkg -s` installs the build and runtime dependencies with pacman first, and `-i` installs the
+package. The PKGBUILD builds the release tag, not your checkout.
 
 The package builds Amp's app icons from Amp's macOS disk image, because they are Amp's artwork and
 this repository does not carry them. Optional packages add features:

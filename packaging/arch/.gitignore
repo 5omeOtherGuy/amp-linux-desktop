@@ -1,0 +1,6 @@
+# makepkg output
+/src/
+/pkg/
+/amp-linux-desktop/
+*.dmg
+*.pkg.tar.*
