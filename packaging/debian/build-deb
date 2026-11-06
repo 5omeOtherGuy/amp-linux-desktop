@@ -30,6 +30,11 @@ sed 's|@BIN@|/usr/bin/amp-linux-desktop|g' "$root/data/dev.ampnative.Amp.desktop
 	sed 's/^$/./; s/^/ /' "$root/LICENSE"
 } >"$tree/usr/share/doc/$pkg/copyright"
 chmod 644 "$tree/usr/share/doc/$pkg/copyright"
+# Huddles link LiveKit's prebuilt libwebrtc, which carries its own libavutil and libsrtp.
+install -d "$tree/usr/share/lintian/overrides"
+printf '%s\n' "$pkg: embedded-library libavutil [usr/bin/amp-linux-desktop]" \
+	"$pkg: embedded-library srtp [usr/bin/amp-linux-desktop]" >"$tree/usr/share/lintian/overrides/$pkg"
+chmod 644 "$tree/usr/share/lintian/overrides/$pkg"
 
 {
 	echo "$pkg ($version-1) unstable; urgency=medium"

@@ -1,1 +1,2 @@
 addFilter("no-manual-page-for-binary")
+addFilter("spelling-error .*macOS")
