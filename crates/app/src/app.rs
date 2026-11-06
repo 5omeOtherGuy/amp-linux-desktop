@@ -357,15 +357,18 @@ impl App {
     }
 
     pub fn run_global_command(self: &Rc<Self>, command: GlobalCommand) {
+        if matches!(command, GlobalCommand::PuckWindow) {
+            // The Puck window needs no main window; opening one would take focus from Puck.
+            crate::bridge::toggle_puck_window(self, None);
+            return;
+        }
         let Some(window) = self.main_window() else {
             // A new window takes the command once the page reports it is ready.
             self.pending_command.set(Some(command));
             self.present_main();
             return;
         };
-        if !matches!(command, GlobalCommand::PuckWindow) {
-            window.window.present();
-        }
+        window.window.present();
         self.run_command(&window, command);
     }
 
