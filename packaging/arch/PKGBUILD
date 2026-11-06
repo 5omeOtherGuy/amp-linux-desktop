@@ -15,7 +15,7 @@ arch=('x86_64')
 url='https://github.com/5omeOtherGuy/amp-linux-desktop'
 license=('MIT')
 depends=('glib2' 'gtk4' 'libadwaita' 'pango' 'webkitgtk-6.0' 'libsoup3' 'gstreamer' 'gst-plugins-base-libs'
-	'sqlite' 'glibc' 'hicolor-icon-theme')
+	'sqlite' 'gdk-pixbuf2' 'libgcc' 'glibc' 'hicolor-icon-theme')
 makedepends=('git' 'cargo' 'clang' '7zip')
 optdepends=(
 	'gst-plugins-base: dictation'
