@@ -30,7 +30,7 @@ sha256sums=('SKIP'
 
 build() {
 	cd "$pkgname"
-	python scripts/fetch-icons.py --dmg "$srcdir/Amp-1.0-$_ampbuild.dmg" --out "$srcdir/icons"
+	python -m amp_native.icons --dmg "$srcdir/Amp-1.0-$_ampbuild.dmg" --out "$srcdir/icons"
 }
 
 package() {

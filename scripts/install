@@ -41,7 +41,7 @@ else
 	"$python" -m pip install -q --target "$huddle" livekit
 fi || echo "install: continuing without Huddles (could not install the livekit package)" >&2
 
-"$python" "$root/scripts/fetch-icons.py" || echo "install: continuing without Amp's icons" >&2
+(cd "$root" && "$python" -m amp_native.icons) || echo "install: continuing without Amp's icons" >&2
 icon=$data/amp-native/icons/dark.png
 [ -f "$icon" ] && cp "$icon" "$data/icons/hicolor/512x512/apps/dev.ampnative.Amp.png"
 

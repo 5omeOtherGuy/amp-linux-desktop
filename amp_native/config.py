@@ -30,7 +30,7 @@ STATE_FILE = CONFIG_DIR / "settings.json"
 LOG_FILE = CACHE_DIR / "amp-native.log"
 RUNNER_LOG = CACHE_DIR / "runner.log"
 STDERR_LOG = CACHE_DIR / "stderr.log"  # written by the amp-linux-desktop launcher
-ICON_DIR = DATA_DIR / "icons"  # where scripts/fetch-icons.py puts Amp's icons for this user
+ICON_DIR = DATA_DIR / "icons"  # where amp_native.icons puts Amp's icons for this user
 # The Arch package installs them for all users here instead.
 SYSTEM_ICON_DIRS = [Path(d) / "amp-native" / "icons"
                     for d in (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":") if d]

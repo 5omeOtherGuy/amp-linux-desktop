@@ -17,7 +17,9 @@ orbs do not have that file.
 ## Keep Amp's artwork and private content out
 
 - The repository carries no Amp app icon and no other file from Amp's macOS disk image.
-  `scripts/fetch-icons.py` extracts the icons when a user installs or builds the package.
+  `amp_native/icons.py` extracts them: `scripts/install` and the Arch package at install or
+  build time, and the app itself on first start when no icons are installed (the .deb and .rpm,
+  which are built in CI and handed out as files).
 - Screenshots in `docs/img` show no thread titles, names, email addresses, tokens, home paths, or
   Amp app icons. Take them in a signed-out run, or crop them.
 

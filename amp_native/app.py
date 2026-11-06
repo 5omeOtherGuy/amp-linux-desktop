@@ -7,11 +7,12 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk, WebKit
 
-from . import config, scripts
+from . import config, icons, scripts
 from .runner import Runner
 from .settings_window import SettingsWindow
 from .signin import SignIn
@@ -150,6 +151,8 @@ class AmpApplication(Adw.Application):
         self.tray.start()
         if self.settings["runner_enabled"]:
             self.runner.apply()
+        if config.icon_file("app") is None:
+            self._fetch_icons()
 
     def do_activate(self):
         window = self.main_window()
@@ -577,6 +580,21 @@ class AmpApplication(Adw.Application):
             )
         else:
             autostart.unlink(missing_ok=True)
+
+    def _fetch_icons(self):
+        # The .deb and .rpm cannot carry Amp's icons; take them from Amp's disk image once, off the
+        # main thread, then install the launcher icon. A failure leaves the generic icon and is
+        # retried at the next start.
+        def work():
+            try:
+                names = icons.fetch()
+            except Exception as error:
+                log.warning("could not fetch Amp's icons: %s", error)
+                return
+            log.info("fetched Amp's icons: %s", ", ".join(names))
+            GLib.idle_add(self.set_app_icon, self.settings["app_icon"])
+
+        threading.Thread(target=work, name="fetch-icons", daemon=True).start()
 
     def set_app_icon(self, key):
         self.settings.set("app_icon", key)
