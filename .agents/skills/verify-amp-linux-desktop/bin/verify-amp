@@ -145,7 +145,14 @@ desk)
 labwc)
 	# sway ignores the app's minimize and maximize requests; labwc, nested as a window of the
 	# session, honours them. The app inside it is not in `agent-desktop windows`, so doctor fails.
-	agent-desktop windows "$session" | grep -q dev.ampnative.Amp && { echo "verify-amp: quit the app first (agent-desktop key $session ctrl+q)" >&2; exit 1; }
+	# The app keeps running without a window (in the tray), and a second copy started in labwc
+	# would hand over to it and exit; so look for this run's process, not its window.
+	for pid in $(pgrep -f "^$bin" || true); do
+		if tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | grep -qx "XDG_DATA_HOME=$scratch/data"; then
+			echo "verify-amp: quit the app first (agent-desktop key $session ctrl+q; pid $pid)" >&2
+			exit 1
+		fi
+	done
 	fetch_tools
 	mkdir -p "$scratch/labwc"
 	echo '<?xml version="1.0"?><labwc_config><core><decoration>server</decoration></core></labwc_config>' >"$scratch/labwc/rc.xml"
