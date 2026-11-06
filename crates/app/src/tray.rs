@@ -2,18 +2,19 @@
 //!
 //! Waybar, KDE, and GNOME's AppIndicator extension show StatusNotifierItems. The menu lists the
 //! recent threads the page sends through ampNativeMenuBar (version 2), with the unread ones marked,
-//! plus New Thread, Puck, Preferences, and Quit. Without a StatusNotifierWatcher on the bus the
-//! icon stays unregistered and nothing else changes.
+//! plus New Thread, Puck, Call Puck, the runner switches as check items, Settings, and Quit.
+//! Without a StatusNotifierWatcher on the bus the icon stays unregistered and nothing else changes.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use amp_common::config::APP_ID;
+use amp_common::config::{APP_ID, truthy};
 use gtk::{gio, glib, prelude::*};
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::app::App;
+use crate::runner::Runner;
 
 const WATCHER: &str = "org.kde.StatusNotifierWatcher";
 const ITEM_PATH: &str = "/StatusNotifierItem";
@@ -250,17 +251,15 @@ impl Tray {
         *self.threads.borrow_mut() =
             threads.iter().filter(|t| t.get("id").is_some_and(Value::is_string)).take(MAX_THREADS).cloned().collect();
         self.unread.set(unread.max(0));
+        self.refresh();
+        self.emit(ITEM_PATH, "org.kde.StatusNotifierItem", "NewToolTip", None);
+        self.emit(ITEM_PATH, "org.kde.StatusNotifierItem", "NewTitle", None);
+    }
+
+    /// Tells hosts to fetch the menu again, as a thread or a runner setting changed.
+    pub fn refresh(&self) {
         self.revision.set(self.revision.get() + 1);
-        if self.connection.borrow().is_some() {
-            self.emit(
-                MENU_PATH,
-                "com.canonical.dbusmenu",
-                "LayoutUpdated",
-                Some((self.revision.get(), 0i32).to_variant()),
-            );
-            self.emit(ITEM_PATH, "org.kde.StatusNotifierItem", "NewToolTip", None);
-            self.emit(ITEM_PATH, "org.kde.StatusNotifierItem", "NewTitle", None);
-        }
+        self.emit(MENU_PATH, "com.canonical.dbusmenu", "LayoutUpdated", Some((self.revision.get(), 0i32).to_variant()));
     }
 
     fn emit(&self, path: &str, interface: &str, name: &str, params: Option<glib::Variant>) {
@@ -315,7 +314,7 @@ impl Tray {
     // ---- dbusmenu --------------------------------------------------------------------------
 
     /// Rebuilds the menu; returns the IDs of the entries under root 0.
-    fn layout(&self) -> Vec<i32> {
+    fn layout(&self, app: &Rc<App>) -> Vec<i32> {
         let mut items: Vec<(Props, Option<Action>)> = Vec::new();
         let mut item = |label: &str, action: Option<Action>| {
             let mut props = Props::new();
@@ -328,7 +327,8 @@ impl Tray {
         let action = |f: fn(&Rc<App>)| -> Option<Action> { Some(Rc::new(f)) };
         item("Open Amp", action(|app| app.present_main()));
         item("New Thread", action(|app| app.adw.activate_action("new-thread", None)));
-        item("Show Puck", action(|app| app.adw.activate_action("toggle-puck", None)));
+        item("Puck", action(|app| app.adw.activate_action("toggle-puck", None)));
+        item("Call Puck", action(|app| app.adw.activate_action("puck-voice", None)));
         let threads = self.threads.borrow().clone();
         let separator = |items: &mut Vec<(Props, Option<Action>)>| {
             let mut props = Props::new();
@@ -368,12 +368,31 @@ impl Tray {
             }
         }
         separator(&mut items);
+        // The Mac's Runner, Keep Awake, Share Display, and Share Network tiles; Share Network shows
+        // where Settings → Runner shows its switch.
+        let net = app.main_window().is_some_and(|m| m.app_state.borrow().get("ampNetEnabled").is_some_and(truthy));
+        let switches = [
+            ("Runner", "runner_enabled"),
+            ("Keep Awake", "runner_keep_awake"),
+            ("Share Display", "runner_desktop"),
+            ("Share Network", "runner_share_network"),
+        ];
+        for (label, key) in switches.into_iter().filter(|&(_, key)| net || key != "runner_share_network") {
+            let mut props = Props::new();
+            props.insert("label".into(), label.to_variant());
+            props.insert("toggle-type".into(), "checkmark".to_variant());
+            props.insert("toggle-state".into(), i32::from(truthy(&Runner::get(&app.settings, key))).to_variant());
+            let toggle =
+                move |app: &Rc<App>| app.set_runner_setting(key, json!(!truthy(&Runner::get(&app.settings, key))));
+            items.push((props, Some(Rc::new(toggle))));
+        }
+        separator(&mut items);
         let mut item = |label: &str, action: Option<Action>| {
             let mut props = Props::new();
             props.insert("label".into(), label.to_variant());
             items.push((props, action));
         };
-        item("Preferences", action(|app| app.show_app_settings(None)));
+        item("Settings…", action(|app| app.show_app_settings(None)));
         item("Quit Amp", action(|app| app.quit_all()));
         let ids = (1..=items.len() as i32).collect();
         *self.items.borrow_mut() = items;
@@ -400,7 +419,7 @@ impl Tray {
     fn menu_call(&self, app: &Rc<App>, method: &str, params: &glib::Variant, invocation: gio::DBusMethodInvocation) {
         match method {
             "GetLayout" => {
-                let entries = self.layout();
+                let entries = self.layout(app);
                 let mut root_props = Props::new();
                 root_props.insert("children-display".into(), "submenu".to_variant());
                 let children: Vec<glib::Variant> =

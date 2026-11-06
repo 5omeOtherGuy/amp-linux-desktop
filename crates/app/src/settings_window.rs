@@ -80,6 +80,8 @@ pub struct SettingsWindow {
     account_group: adw::PreferencesGroup,
     account_rows: RefCell<Vec<gtk::Widget>>,
     runner_switch: gtk::Switch,
+    /// The Runner tab's other switches with their settings.
+    runner_switches: RefCell<Vec<(&'static str, gtk::Switch)>>,
     runner_status: adw::ActionRow,
     network_group: adw::PreferencesGroup,
     discover_row: adw::ActionRow,
@@ -109,6 +111,7 @@ impl SettingsWindow {
                 .active(app.settings.bool("runner_enabled"))
                 .valign(gtk::Align::Center)
                 .build(),
+            runner_switches: RefCell::default(),
             runner_status: adw::ActionRow::builder().title("Use This Computer as a Runner").build(),
             network_group: group(None, None),
             discover_row: adw::ActionRow::builder().title("All Projects Under Directories").build(),
@@ -435,32 +438,44 @@ impl SettingsWindow {
                 }
             }
         };
-        g.add(&switch_row(
-            "Share This Computer’s Display",
-            Some("Threads running here can show and control this computer’s screen in their Desktop tab."),
-            s.bool("runner_desktop"),
-            setting("runner_desktop"),
+        g.add(&self.runner_row(
+            "runner_desktop",
+            switch_row(
+                "Share This Computer’s Display",
+                Some("Threads running here can show and control this computer’s screen in their Desktop tab."),
+                s.bool("runner_desktop"),
+                setting("runner_desktop"),
+            ),
         ));
-        g.add(&switch_row(
-            "Allow Terminal Access",
-            Some("Threads running here can open a shell on this computer in their Terminal tab."),
-            s.bool("runner_terminal"),
-            setting("runner_terminal"),
+        g.add(&self.runner_row(
+            "runner_terminal",
+            switch_row(
+                "Allow Terminal Access",
+                Some("Threads running here can open a shell on this computer in their Terminal tab."),
+                s.bool("runner_terminal"),
+                setting("runner_terminal"),
+            ),
         ));
-        g.add(&switch_row(
-            "Keep This Computer Awake",
-            Some("Prevent sleep while the runner is on."),
-            s.bool("runner_keep_awake"),
-            setting("runner_keep_awake"),
+        g.add(&self.runner_row(
+            "runner_keep_awake",
+            switch_row(
+                "Keep This Computer Awake",
+                Some("Prevent sleep while the runner is on."),
+                s.bool("runner_keep_awake"),
+                setting("runner_keep_awake"),
+            ),
         ));
 
         let place = group(Some("Where Threads Can Run"), None);
-        place.add(&switch_row_with_prefix(
-            "Home Directory",
-            "~",
-            "user-home-symbolic",
-            s.bool("runner_home"),
-            setting("runner_home"),
+        place.add(&self.runner_row(
+            "runner_home",
+            switch_row_with_prefix(
+                "Home Directory",
+                "~",
+                "user-home-symbolic",
+                s.bool("runner_home"),
+                setting("runner_home"),
+            ),
         ));
         self.discover_row.add_prefix(&icon("folder-saved-search-symbolic"));
         let choose = gtk::Button::builder().label("Choose…").valign(gtk::Align::Center).build();
@@ -494,11 +509,14 @@ impl SettingsWindow {
         self.new_dirs_row.add_suffix(&new_choose);
         place.add(&self.new_dirs_row);
 
-        self.network_group.add(&switch_row(
-            "Share This Computer’s Network",
-            Some("Let your orbs browse the web through this computer’s connection."),
-            truthy(&Runner::get(s, "runner_share_network")),
-            setting("runner_share_network"),
+        self.network_group.add(&self.runner_row(
+            "runner_share_network",
+            switch_row(
+                "Share This Computer’s Network",
+                Some("Let your orbs browse the web through this computer’s connection."),
+                truthy(&Runner::get(s, "runner_share_network")),
+                setting("runner_share_network"),
+            ),
         ));
         self.refresh_runner_paths();
 
@@ -540,14 +558,17 @@ impl SettingsWindow {
     }
 
     fn runner_setting(&self, key: &str, value: Value) {
-        let Some(app) = self.settings() else { return };
-        if Runner::get(&app.settings, key) == value {
-            return;
+        if let Some(app) = self.settings() {
+            app.set_runner_setting(key, value);
         }
-        app.settings.set(key, value);
-        if key == "runner_enabled" || app.settings.bool("runner_enabled") {
-            app.runner.apply(&app);
+    }
+
+    /// Keeps the switch of `row` so that refresh_runner shows changes made from the tray.
+    fn runner_row(&self, key: &'static str, row: adw::ActionRow) -> adw::ActionRow {
+        if let Some(switch) = row.activatable_widget().and_downcast::<gtk::Switch>() {
+            self.runner_switches.borrow_mut().push((key, switch));
         }
+        row
     }
 
     pub fn refresh_runner(self: &Rc<Self>) {
@@ -574,6 +595,13 @@ impl SettingsWindow {
         self.refresh_dirs();
         if self.runner_switch.is_active() != settings.bool("runner_enabled") {
             self.runner_switch.set_active(settings.bool("runner_enabled"));
+        }
+        let switches = self.runner_switches.borrow().clone();
+        for (key, switch) in switches {
+            let active = truthy(&Runner::get(settings, key));
+            if switch.is_active() != active {
+                switch.set_active(active);
+            }
         }
     }
 

@@ -274,6 +274,20 @@ impl App {
         window.show_tab(tab.unwrap_or("general"));
     }
 
+    /// Changes a runner setting from Settings → Runner or the tray, restarts or stops the runner
+    /// when it is on or the change turns it on or off, and shows the change in both.
+    pub fn set_runner_setting(self: &Rc<Self>, key: &str, value: Value) {
+        if Runner::get(&self.settings, key) == value {
+            return;
+        }
+        self.settings.set(key, value);
+        if key == "runner_enabled" || self.settings.bool("runner_enabled") {
+            self.runner.apply(self);
+        }
+        self.refresh_settings_runner();
+        self.tray.refresh();
+    }
+
     pub fn refresh_settings_runner(self: &Rc<Self>) {
         let window = self.settings_window.borrow().clone();
         if let Some(window) = window {
