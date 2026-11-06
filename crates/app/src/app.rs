@@ -101,6 +101,8 @@ pub fn run() -> std::process::ExitCode {
     adw.connect_open(move |_, files, _| a.open(files));
     let a = app.clone();
     adw.connect_shutdown(move |_| a.shutdown());
+    let a = app.clone();
+    adw.connect_window_removed(move |_, window| a.window_removed(window));
     adw.run().into()
 }
 
@@ -231,16 +233,23 @@ impl App {
     pub fn open_window(self: &Rc<Self>, path: &str, auxiliary: Option<&'static str>) -> Rc<AmpWindow> {
         let window = AmpWindow::new(self, path, auxiliary);
         self.windows.borrow_mut().push(window.clone());
-        let weak = Rc::downgrade(self);
-        let ptr = Rc::downgrade(&window);
-        window.window.connect_destroy(move |_| {
-            if let Some(app) = weak.upgrade() {
-                app.windows.borrow_mut().retain(|w| !Weak::ptr_eq(&Rc::downgrade(w), &ptr));
-            }
-        });
         crate::bridge::add_window_actions(self, &window);
         window.window.present();
         window
+    }
+
+    /// A closed window leaves the application before it is disposed, and it is only disposed once
+    /// nothing holds it: drop the app's references here, not on `destroy`, which would never come.
+    fn window_removed(&self, window: &gtk::Window) {
+        let removed = self.find_window(window);
+        if let Some(removed) = &removed {
+            self.windows.borrow_mut().retain(|w| !Rc::ptr_eq(w, removed));
+        }
+        let settings =
+            self.settings_window.borrow().as_ref().is_some_and(|s| s.window.upcast_ref::<gtk::Window>() == window);
+        if settings {
+            self.settings_window.borrow_mut().take();
+        }
     }
 
     fn find_window(&self, window: &gtk::Window) -> Option<Rc<AmpWindow>> {
@@ -251,12 +260,6 @@ impl App {
         let existing = self.settings_window.borrow().clone();
         let window = existing.unwrap_or_else(|| {
             let window = SettingsWindow::new(self);
-            let weak = Rc::downgrade(self);
-            window.window.connect_destroy(move |_| {
-                if let Some(app) = weak.upgrade() {
-                    app.settings_window.borrow_mut().take();
-                }
-            });
             *self.settings_window.borrow_mut() = Some(window.clone());
             window
         });
