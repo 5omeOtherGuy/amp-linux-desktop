@@ -501,7 +501,8 @@ class AmpWindow(NativeBridge, Adw.ApplicationWindow):
         self.run_js(scripts.host_visibility(self._visibility_sequence, self.is_active(), None))
 
     def _visibility_tick(self):
-        if not self.get_mapped() and self.webview.get_parent() is None:
+        # A closed window has left the application; the timer must let go of it so it can be freed.
+        if self.get_application() is None or (not self.get_mapped() and self.webview.get_parent() is None):
             return False
         self.publish_host_visibility()
         return True

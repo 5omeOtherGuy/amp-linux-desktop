@@ -117,6 +117,7 @@ class AmpApplication(Adw.Application):
         self.add_main_option("action", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
                              f"Run an action in the running Amp: {', '.join(GLOBAL_COMMANDS)}", "NAME")
         self.connect("handle-local-options", self._handle_local_options)
+        self.connect("window-removed", self._window_removed)
         self.user_agent_suffix = (
             f"AmpNativeApp/1 AmpPlatform/Linux AmpAppVersion/0.1.{config.BUILD_NUMBER} "
             # WebKit only accepts RFC 9110 product tokens, so the two-slash AmpApp token goes in a
@@ -191,15 +192,25 @@ class AmpApplication(Adw.Application):
     def open_window(self, path, auxiliary=None):
         window = AmpWindow(self, path, auxiliary)
         self.windows.append(window)
-        window.connect("destroy", lambda w: self.windows.remove(w) if w in self.windows else None)
         self._add_window_actions(window)
         window.present()
         return window
 
+    def _window_removed(self, _app, window):
+        # A closed window leaves the application here. Its signal handlers (bound methods of the
+        # window) keep it alive in a cycle Python cannot collect, and GTK 4 does not dispose it on
+        # close, so dispose it once GTK is done with it; that frees the window and its web view.
+        if window in self.windows:
+            self.windows.remove(window)
+        elif window is self.settings_window:
+            self.settings_window = None
+        else:
+            return  # Huddle windows finish leaving the call after they close.
+        GLib.idle_add(lambda: window.run_dispose() and False)
+
     def show_app_settings(self, tab=None):
         if self.settings_window is None:
             self.settings_window = SettingsWindow(self)
-            self.settings_window.connect("destroy", lambda *_: setattr(self, "settings_window", None))
         self.settings_window.show_tab(tab or "general")
 
     def launch_uri(self, uri):

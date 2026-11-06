@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Closing an extra window, the Puck window or the settings window frees it. Before, each closed
+  window and its page stayed in memory until Amp quit.
+
 ## 0.1.1 - 2026-11-06
 
 ### Added

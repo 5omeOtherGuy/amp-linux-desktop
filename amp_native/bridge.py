@@ -116,7 +116,6 @@ class NativeBridge:
             window.present()
 
     def _puck_window(self):
-        # Closed windows stay in app.windows without an application, as main_window() expects.
         return next(
             (w for w in self.app.windows if w._auxiliary == "puck" and w.get_application() is not None), None
         )
@@ -127,7 +126,6 @@ class NativeBridge:
         window = type(self)(self.app, path, "puck")
         window.set_default_size(*PUCK_SIZE)
         self.app.windows.append(window)
-        window.connect("destroy", lambda w: self.app.windows.remove(w) if w in self.app.windows else None)
         self.app._add_window_actions(window)
         window.present()
 
