@@ -18,6 +18,7 @@ use crate::menus::{GLOBAL_COMMANDS, GlobalCommand, Menus};
 use crate::runner::Runner;
 use crate::settings_window::SettingsWindow;
 use crate::signin::SignIn;
+use crate::thread_import::ThreadImports;
 use crate::tray::Tray;
 use crate::window::{AmpWindow, is_app_url};
 
@@ -33,6 +34,7 @@ pub struct App {
     pub sign_in: SignIn,
     pub runner: Runner,
     pub tray: Tray,
+    pub thread_imports: ThreadImports,
     menus: OnceCell<Menus>,
     /// A global command for a window that is still loading; it runs once the page is ready.
     pending_command: Cell<Option<GlobalCommand>>,
@@ -66,6 +68,7 @@ pub fn run() -> std::process::ExitCode {
         sign_in: SignIn::default(),
         runner: Runner::default(),
         tray: Tray::default(),
+        thread_imports: ThreadImports::default(),
         menus: OnceCell::new(),
         pending_command: Cell::new(None),
         #[cfg(feature = "huddles")]
@@ -286,6 +289,13 @@ impl App {
         }
         self.refresh_settings_runner();
         self.tray.refresh();
+    }
+
+    pub fn refresh_settings_imports(&self) {
+        let window = self.settings_window.borrow().clone();
+        if let Some(window) = window {
+            window.refresh_imports();
+        }
     }
 
     pub fn refresh_settings_runner(self: &Rc<Self>) {

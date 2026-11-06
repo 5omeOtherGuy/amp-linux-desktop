@@ -11,6 +11,7 @@ mod menus;
 mod runner;
 mod settings_window;
 mod signin;
+mod thread_import;
 mod toasts;
 mod tray;
 mod window;

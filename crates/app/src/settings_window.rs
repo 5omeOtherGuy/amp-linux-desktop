@@ -12,6 +12,7 @@ use serde_json::{Value, json};
 use crate::app::App;
 use crate::menus::{GLOBAL_SHORTCUTS, accel_label};
 use crate::runner::{Runner, find_cli};
+use crate::thread_import::ThreadImports;
 
 const TABS: [(&str, &str, &str); 6] = [
     ("general", "General", "emblem-system-symbolic"),
@@ -90,6 +91,8 @@ pub struct SettingsWindow {
     dir_rows: RefCell<Vec<gtk::Widget>>,
     notification_status: gtk::Label,
     notification_button: gtk::Button,
+    /// General → Other Coding Agents, with when threads were last imported.
+    imports_row: adw::ActionRow,
     /// The About tab's app icon, which follows the App Icon choice.
     about_icon: gtk::Picture,
     #[allow(deprecated)]
@@ -126,6 +129,7 @@ impl SettingsWindow {
                 .label("Enable Notifications")
                 .valign(gtk::Align::Center)
                 .build(),
+            imports_row: adw::ActionRow::builder().title("Other Coding Agents").build(),
             about_icon: gtk::Picture::builder().can_shrink(true).build(),
             chooser: RefCell::default(),
         });
@@ -303,7 +307,30 @@ impl SettingsWindow {
             groups.push(g2);
         }
         groups.push(shortcuts_group());
+        let imports = group(None, None);
+        let button = gtk::Button::builder().label("Import Threads…").valign(gtk::Align::Center).build();
+        let weak = Rc::downgrade(app);
+        let window = self.window.downgrade();
+        button.connect_clicked(move |_| {
+            if let (Some(app), Some(window)) = (weak.upgrade(), window.upgrade()) {
+                crate::thread_import::show(&app, &window);
+            }
+        });
+        self.imports_row.add_suffix(&button);
+        self.imports_row.set_subtitle(&ThreadImports::summary(app));
+        imports.add(&self.imports_row);
+        imports.add(&crate::thread_import::caption(
+            "Bring conversations from other coding agents on this computer into Amp as read-only threads. \
+             Imports only run when you start them.",
+        ));
+        groups.push(imports);
         groups
+    }
+
+    pub fn refresh_imports(&self) {
+        if let Some(app) = self.settings() {
+            self.imports_row.set_subtitle(&ThreadImports::summary(&app));
+        }
     }
 
     // ---- Account ---------------------------------------------------------------------------

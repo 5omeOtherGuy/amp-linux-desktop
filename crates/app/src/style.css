@@ -48,6 +48,11 @@ label.warning {
   color: #ff8a00;
 }
 
+.amp-import-error .subtitle {
+  color: @error_color;
+  opacity: 1;
+}
+
 /* Huddle window */
 .huddle-tile {
   border-radius: 12px;

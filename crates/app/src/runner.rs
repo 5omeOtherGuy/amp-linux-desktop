@@ -271,6 +271,11 @@ impl Runner {
         Some(args)
     }
 
+    /// The app's signed-in account, as the page last reported it; kept after its windows close.
+    pub fn account_email(&self) -> Option<String> {
+        self.account_email.borrow().clone()
+    }
+
     /// The app's signed-in account (app state signedInEmail). The runner serves threads for that
     /// account, as the Mac app's does, and restarts when it changes.
     pub fn account_changed(&self, app: &Rc<App>, email: Option<&str>) {
