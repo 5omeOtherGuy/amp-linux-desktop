@@ -4,6 +4,7 @@
 //! Payload and reply shapes follow the page's bridge module on ampcode.com (the `ampNative*`
 //! callers in /_app/immutable/chunks).
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use adw::prelude::*;
@@ -57,6 +58,7 @@ const REPLY_HANDLERS: &[&str] = &[
     "ampNativeSaveFileStream",
     "ampNativePasteboardImages",
     "ampNativeImportLocalProjects",
+    "ampNativePrint",
 ];
 
 /// The answer to a message the page awaits. Dropping it unanswered rejects it, so the page
@@ -322,6 +324,7 @@ fn on_reply(window: &Rc<AmpWindow>, name: &str, body: &Value, reply: Reply) {
             });
         }
         "ampNativeImportLocalProjects" => import_local_projects(&app, window, body, reply),
+        "ampNativePrint" => print_html(&app, window, body, reply),
         _ => reply.send(Err(format!("unknown handler {name}"))),
     }
 }
@@ -393,6 +396,36 @@ fn puck_window(app: &App) -> Option<Rc<AmpWindow>> {
 }
 
 // ---- local projects ----------------------------------------------------------------------------
+
+/// Prints the document the page built for printing (`{title, html}`), as the macOS app's
+/// NativePrintMessageHandler: loads it into a web view of its own and opens the print dialog.
+fn print_html(app: &Rc<App>, window: &Rc<AmpWindow>, body: &Value, reply: Reply) {
+    let Some(html) = body.get("html").and_then(Value::as_str) else {
+        reply.send(Err("no html".into()));
+        return;
+    };
+    let view = webkit::WebView::builder().network_session(app.network_session()).build();
+    // Holds the view until printing ends; the view's own handler reaches it only through here.
+    let keep = Rc::new(RefCell::new(Some(view.clone())));
+    let reply = RefCell::new(Some(reply));
+    let parent = window.window.clone();
+    view.connect_load_changed(move |view, event| {
+        if event != webkit::LoadEvent::Finished {
+            return;
+        }
+        let Some(reply) = reply.borrow_mut().take() else { return };
+        let operation = webkit::PrintOperation::new(view);
+        let done = keep.clone();
+        operation.connect_finished(move |_| {
+            done.borrow_mut().take();
+        });
+        if operation.run_dialog(Some(&parent)) == webkit::PrintOperationResponse::Cancel {
+            keep.borrow_mut().take();
+        }
+        reply.send(Ok(Value::Null));
+    });
+    view.load_html(html, window.webview.uri().as_deref());
+}
 
 fn import_local_projects(app: &Rc<App>, window: &Rc<AmpWindow>, body: &Value, reply: Reply) {
     let action = body.get("action").and_then(Value::as_str).filter(|_| body.get("version") == Some(&json!(1)));
