@@ -215,12 +215,15 @@ impl SettingsWindow {
                 app.refresh_badge();
             }),
         ));
-        g.add(&switch_row(
-            "Warn Before Quitting",
-            Some("Hold Ctrl+Q to quit, so a stray press keeps Amp open."),
-            s.bool("warn_before_quitting"),
-            with_app(|app, v| app.settings.set("warn_before_quitting", json!(v))),
-        ));
+        // Bound to the app action, as the Amp menu's item is, so the two always agree.
+        let warn = adw::ActionRow::builder()
+            .title("Warn Before Quitting")
+            .subtitle("Hold Ctrl+Q to quit, so a stray press keeps Amp open.")
+            .build();
+        let switch = gtk::Switch::builder().action_name("app.warn-before-quitting").valign(gtk::Align::Center).build();
+        warn.add_suffix(&switch);
+        warn.set_activatable_widget(Some(&switch));
+        g.add(&warn);
         g.add(&switch_row("Open at Login", None, s.bool("open_at_login"), with_app(|app, v| app.set_open_at_login(v))));
         let weak = Rc::downgrade(app);
         let appearances =
