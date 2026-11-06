@@ -829,7 +829,9 @@ impl App {
         let properties = glib::VariantDict::new(None);
         properties.insert_value("count", &self.unread.get().to_variant());
         properties.insert_value("count-visible", &visible.to_variant());
-        let params = (format!("application://{APP_ID}.desktop"), properties.end()).to_variant();
+        // (sa{sv}): a tuple of the variants themselves; to_variant() on a tuple would box the dict.
+        let params =
+            glib::Variant::tuple_from_iter([format!("application://{APP_ID}.desktop").to_variant(), properties.end()]);
         let path = format!("/{}", APP_ID.replace('.', "/"));
         if let Err(error) =
             connection.emit_signal(None, &path, "com.canonical.Unity.LauncherEntry", "Update", Some(&params))
