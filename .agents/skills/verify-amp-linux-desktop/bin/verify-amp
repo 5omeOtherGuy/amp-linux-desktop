@@ -2,7 +2,7 @@
 # Drives an isolated Amp Linux Desktop instance for verification. See ../SKILL.md.
 #   verify-amp launch RUN [--signed-out] [--size WxH] [--scale S] [--set KEY=VALUE]...
 #   verify-amp doctor RUN
-#   verify-amp app RUN [ARGS...]      # start amp_native detached inside the session (e.g. --action new-thread;
+#   verify-amp app RUN [ARGS...]      # start the app detached inside the session (e.g. --action new-thread;
 #                                     # no ARGS after ctrl+q restarts the app)
 #   verify-amp shot RUN NAME          # screenshot into the evidence dir
 #   verify-amp logs RUN               # print the instance's log paths
@@ -16,6 +16,8 @@ shift 2
 session="ampv-$run"
 scratch="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/verify-amp/$run"
 evidence="$repo/.amp/in/artifacts/verify/$run"
+# The debug build of this checkout; launch builds it first.
+bin="$repo/target/debug/amp-linux-desktop"
 
 app_env() {
 	echo "XDG_DATA_HOME=$scratch/data XDG_CONFIG_HOME=$scratch/config XDG_CACHE_HOME=$scratch/cache AMP_NATIVE_DEBUG=1"
@@ -35,6 +37,7 @@ launch)
 		shift
 	done
 	if agent-desktop info "$session" >/dev/null 2>&1; then echo "verify-amp: $session already running; cleanup first" >&2; exit 1; fi
+	cargo build -q --manifest-path "$repo/Cargo.toml" || { echo "verify-amp: build failed" >&2; exit 1; }
 	mkdir -p "$scratch/data/amp-native" "$scratch/config/amp-native" "$scratch/cache/amp-native" "$evidence"
 	chmod 700 "$scratch"
 	if [ "$signed_in" = 1 ]; then
@@ -57,12 +60,10 @@ for pair in sys.argv[2:]:
 json.dump(data, open(path, "w"), indent=2)
 PY
 	[ -d "$HOME/.local/share/amp-native/icons" ] && cp -r "$HOME/.local/share/amp-native/icons" "$scratch/data/amp-native/"
-	# Huddles import livekit from the data dir; link the installed copy instead of copying 90 MB.
-	[ -d "$HOME/.local/share/amp-native/python" ] && ln -s "$HOME/.local/share/amp-native/python" "$scratch/data/amp-native/python"
 	agent-desktop start "$session" --gpu --size "$size" >/dev/null
 	[ "$scale" = 1 ] || agent-desktop swaymsg "$session" "output * scale $scale" >/dev/null
 	# shellcheck disable=SC2046
-	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr.log" -- env $(app_env) sh -c "cd '$repo' && exec python3 -m amp_native" >/dev/null 2>&1
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr.log" -- env $(app_env) "$bin" >/dev/null 2>&1
 	agent-desktop wait "$session" dev.ampnative.Amp 30 >/dev/null
 	sleep 10
 	agent-desktop windows "$session"
@@ -79,17 +80,17 @@ doctor)
 	log="$scratch/cache/amp-native/amp-native.log"
 	echo "page: $(grep -o 'ampNavigationState [^ ]*' "$log" 2>/dev/null | tail -1 | cut -d' ' -f2)"
 	if grep -q 'sign-in\|/__native/start' "$log" 2>/dev/null && ! grep -q '__native/home\|/threads/' "$log"; then echo "auth: signed out"; else echo "auth: signed in (page left the start screen)"; fi
-	errors=$(grep -c -E 'WARNING|ERROR|Traceback' "$log" 2>/dev/null || true)
+	errors=$(grep -c -E 'WARNING|ERROR' "$log" 2>/dev/null || true)
 	echo "log warnings/errors: ${errors:-0} ($log)"
-	tracebacks=$(cat "$scratch/cache/amp-native/"stderr*.log 2>/dev/null | grep -c Traceback || true)
-	echo "stderr tracebacks: ${tracebacks:-0}"
+	panics=$(cat "$scratch/cache/amp-native/"stderr*.log 2>/dev/null | grep -c 'panicked at' || true)
+	echo "stderr panics: ${panics:-0}"
 	;;
 app)
 	# Detached and tracked by the session: a cold start becomes the long-running app instance,
 	# which would block a foreground exec. A second instance hands its args to the running one and exits.
 	# shellcheck disable=SC2046
-	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr-app-$(date +%H%M%S).log" -- env $(app_env) sh -c "cd '$repo' && exec python3 -m amp_native $*" >/dev/null 2>&1
-	echo "started amp_native $* in $session"
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr-app-$(date +%H%M%S).log" -- env $(app_env) "$bin" "$@" >/dev/null 2>&1
+	echo "started amp-linux-desktop $* in $session"
 	;;
 shot)
 	name=${1:?NAME required}
@@ -98,7 +99,7 @@ shot)
 	echo "$evidence/$name.png"
 	;;
 logs)
-	# Python log, then stderr (GTK/WebKit and tracebacks) of the launch and of each `app` run.
+	# App log, then stderr (GTK/WebKit and panics) of the launch and of each `app` run.
 	echo "$scratch/cache/amp-native/amp-native.log"
 	ls -t "$scratch/cache/amp-native/"stderr*.log 2>/dev/null
 	;;

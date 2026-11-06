@@ -1,6 +1,6 @@
 ---
 name: verify-amp-linux-desktop
-description: Launch, drive and screenshot Amp Linux Desktop (the GTK 4/WebKitGTK app in this repo, package amp_native) in an isolated headless desktop to prove a change works end to end. Use before calling a change to the app done, for e2e verification of its features, or to reproduce a bug a user reported in the app. Workstation (P720/laptop) only; needs the agent-desktop skill and a GPU session.
+description: Launch, drive and screenshot Amp Linux Desktop (the GTK 4/WebKitGTK app in this repo, the Rust binary amp-linux-desktop) in an isolated headless desktop to prove a change works end to end. Use before calling a change to the app done, for e2e verification of its features, or to reproduce a bug a user reported in the app. Workstation (P720/laptop) only; needs the agent-desktop skill and a GPU session.
 ---
 
 # Verify Amp Linux Desktop
@@ -25,9 +25,8 @@ Read [features/README.md](features/README.md) before driving; each feature file 
 
 - starts `agent-desktop` session `ampv-RUN` with `--gpu` (the owner renders on an RTX 3060; software rendering changes timing and the video decoder path),
 - copies `~/.local/share/amp-native/web` (cookies) and `~/.config/amp-native/settings.json` into `$XDG_RUNTIME_DIR/verify-amp/RUN/` and points the app's XDG dirs there, so the owner's login and settings are read, never written,
-- links the installed `livekit` package (`~/.local/share/amp-native/python`) so Huddles are available,
 - `--set KEY=VALUE` changes the run's copy of the settings (e.g. `--set notifications=notDetermined`),
-- runs `python3 -m amp_native` from this checkout with `AMP_NATIVE_DEBUG=1` (every bridge message is logged, cut to its first 300 characters, so long `ampNativeAppState` bodies often lack fields such as `puckOpen`), with its stderr in the run's `cache/amp-native/stderr.log` like the installed launcher,
+- builds this checkout with `cargo build` and runs `target/debug/amp-linux-desktop` with `AMP_NATIVE_DEBUG=1` (every bridge message is logged, cut to its first 300 characters, so long `ampNativeAppState` bodies often lack fields such as `puckOpen`), with its stderr in the run's `cache/amp-native/stderr.log`, where the installed app also keeps it,
 - waits for the `dev.ampnative.Amp` window, then 10 s for the page.
 
 Ready means: `verify-amp doctor RUN` reports a page other than `/__native/start` (signed in) and a
@@ -44,7 +43,7 @@ reaches the owner's Amp.
 Read-only. Prints the app PID and confirms it uses this run's private data dir (`FOREIGN` means
 you are looking at someone else's instance: stop), the checkout commit (`+dirty` when uncommitted
 or untracked changes are under test), the renderer, the current page, signed-in state, the count of
-warnings/errors in the app log and the count of tracebacks in the stderr logs. Run it first whenever anything looks off.
+warnings/errors in the app log and the count of panics in the stderr logs. Run it first whenever anything looks off.
 
 ## Drive
 
@@ -76,7 +75,7 @@ Proof standard:
 - Do not send messages, create threads, archive, delete or change settings in the owner's Amp account unless the task asks for it: the copied login is his real account. Typing into the composer without sending is fine; clear it afterwards (`ctrl+a`, `BackSpace`).
 - Do not touch his Hyprland session (`WAYLAND_DISPLAY=wayland-1`), his running app, or `~/.local/share/amp-native` / `~/.config/amp-native`.
 - Do not send SIGUSR1/SIGUSR2 to anything that loads WebKitGTK: JavaScriptCore uses SIGUSR1 internally and crashes.
-- Do not kill by name (`pkill -f amp_native` also matches the owner's app and your own shell).
+- Do not kill by name (`pkill -f amp-linux-desktop` also matches the owner's app and your own shell).
 - Do not wake orbs or start Mac satellites (billable) unless the task asks for that feature. Opening an orb thread's Desktop view starts that orb's desktop, and the Mac view may start a satellite.
 - Do not click action buttons in page banners, such as `Investigate in New Orb` under "Orb Setup Has Been Slow" on orb threads, or `Set Up with Amp` / `Docs` / `Dismiss` in the new-thread overlay's "Set Up Orbs" banner: they start threads and orbs or change the owner's account. Do not click Puck's green call button (starts a voice call). Close the views you opened with their own close buttons and check each click target in the screenshot first.
 

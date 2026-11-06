@@ -6,11 +6,29 @@ page's native bridge the way Amp's macOS app does. Every agent working in this r
 file first, after the workstation rules in `~/.agents/AGENTS.md`, which apply here unchanged. Amp
 orbs do not have that file.
 
+## Python app and Rust port
+
+The repository holds two implementations of the same app. `amp_native/` is the Python (PyGObject)
+app that the packages, `scripts/install`, and `dev/` build and run. `crates/` is its Rust port, a
+Cargo workspace that is not packaged yet. Both use the same app ID and data paths, so they share
+settings and the sign-in. A change to the app's behaviour goes into both until the port replaces
+the Python app. The Rust app takes its version from `Cargo.toml` (`[workspace.package] version`).
+
+The workspace splits the port so that a change recompiles one crate: `crates/app` (windows and the
+page's bridge), `crates/common` (paths, settings, page scripts, theme, icons; no GTK),
+`crates/dictation`, and `crates/huddle`. Iterate with `cargo check` and
+`cargo clippy --workspace --all-targets`, and run debug builds. Huddles (the default `huddles`
+feature) link LiveKit's prebuilt libwebrtc: webrtc-sys downloads it on the first build of each
+profile (156 MB, 700 MB unpacked under `target/`) and compiles against it with `clang++`.
+`--no-default-features` builds without Huddles.
+
 ## Verify in the running app
 
 - Before you call a change to the app done, prove it end to end with the
   [verify-amp-linux-desktop](.agents/skills/verify-amp-linux-desktop/SKILL.md) skill. Follow its
-  "Do not" rules in every run: a signed-in run uses a copy of the owner's real Amp login.
+  "Do not" rules in every run: a signed-in run uses a copy of the owner's real Amp login. The
+  skill runs the Rust app (a debug build of `crates/`); to verify the Python app, run the skill
+  from a checkout of `main`.
 - The owner's running Amp comes from `scripts/install`. Do not run `scripts/install` or install the
   Arch package on the workstations unless the owner asks for it.
 
