@@ -65,11 +65,16 @@ pub fn window_metrics(left: i32, right: i32, full_screen: bool, zoom: f64) -> St
 }
 
 /// Linux-specific layout the page has no Mac-shell equivalent for: keep title-bar actions clear of
-/// window controls on the right.
+/// window controls on the right, and show the Keymap's From any app shortcuts as plain text. The
+/// page draws those with the macOS font features that turn each capital and "+" into a keycap,
+/// meant for ⌃⌥⇧⌘ glyph strings; Linux sends "Ctrl+Alt+N".
 pub const LINUX_CSS: &str = r#"
 html[data-amp-shell=macos-v1] .app-title-bar,
 html[data-amp-shell=macos-v1] .app-window-controls-title-bar {
   padding-right: calc(var(--amp-linux-window-controls-right-inset, 0px) + 0.25rem) !important;
+}
+html[data-amp-shell=macos-v1] kbd[style*="ss07"] {
+  font-feature-settings: normal !important;
 }
 "#;
 
