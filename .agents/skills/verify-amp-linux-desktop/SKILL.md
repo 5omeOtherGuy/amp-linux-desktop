@@ -55,7 +55,7 @@ headless session has no AT-SPI bus). Drive the way a user does:
 - `verify-amp app RUN --action new-thread` runs a desktop-wide command against the running instance (names: `show`, `new-thread`, `dictate-new-thread`, `toggle-puck`, `puck-voice`). It starts detached and returns at once.
 - Restart the app inside the same session: `agent-desktop key ampv-RUN ctrl+q`, then `verify-amp app RUN` with no arguments, then wait about 10 s and screenshot.
 - `agent-desktop swaymsg ampv-RUN '[app_id=dev.ampnative.Amp] fullscreen enable'` gives one big window.
-- Navigate to a thread by clicking it in the sidebar. Do not pass a thread URL on the command line: it opens a second window that stays blank in the headless session (known, also on main).
+- Navigate to a thread by clicking it in the sidebar. A thread URL on the command line opens it in a second window.
 - Page state is in the app log (`verify-amp logs RUN`): `ampNavigationState <url>`, `ampNativeAppState {...}` and every other bridge message, with timestamps.
 
 ## Evidence
