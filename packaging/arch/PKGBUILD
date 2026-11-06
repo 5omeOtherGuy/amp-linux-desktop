@@ -1,0 +1,50 @@
+# Maintainer: Simon Gies <simon dot gies at pm dot me>
+
+pkgname=amp-linux-desktop
+pkgver=0.1.0
+pkgrel=1
+# Amp's macOS disk image, which the app icons are extracted from at build time. They are Amp's
+# artwork, so the repository does not carry them. Any build listed in
+# https://static.ampcode.com/mac/appcast.xml works.
+_ampbuild=1125
+pkgdesc='Native GTK 4 desktop app for Amp, the coding agent at ampcode.com'
+arch=('any')
+url='https://github.com/5omeOtherGuy/amp-linux-desktop'
+license=('LicenseRef-unknown')
+depends=('python' 'python-gobject' 'glib2' 'gtk4' 'libadwaita' 'pango' 'webkitgtk-6.0' 'gstreamer' 'hicolor-icon-theme')
+makedepends=('git' '7zip')
+optdepends=(
+	'gst-plugins-base: dictation'
+	'gst-plugins-good: dictation and the Huddle camera'
+	'gst-libav: video in the Desktop and Mac tabs of an orb thread'
+	'python-livekit: Huddles'
+	'ampcode: the Amp CLI for running threads on this computer (Amp installs it otherwise)'
+)
+source=("git+$url.git#tag=v$pkgver"
+	"Amp-1.0-$_ampbuild.dmg::https://static.ampcode.com/mac/Amp-1.0-$_ampbuild.dmg"
+	'amp-linux-desktop.sh')
+noextract=("Amp-1.0-$_ampbuild.dmg")
+sha256sums=('SKIP'
+	'2a671b2a01cb356f79cc76ba5de6822c9df0182bacea3a302c6566c6f8d16f1f'
+	'3b6b524b021c3ffd7ba7b631af446fa63342058411f7f77e59cd4a80ad26d69a')
+
+build() {
+	cd "$pkgname"
+	python scripts/fetch-icons.py --dmg "$srcdir/Amp-1.0-$_ampbuild.dmg" --out "$srcdir/icons"
+}
+
+package() {
+	cd "$pkgname"
+	local site
+	site=$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+	install -Dm644 -t "$pkgdir$site/amp_native" amp_native/*.py amp_native/style.css
+	python -m compileall -q -o 0 -o 1 -s "$pkgdir" "$pkgdir$site/amp_native"
+
+	install -Dm755 "$srcdir/amp-linux-desktop.sh" "$pkgdir/usr/bin/amp-linux-desktop"
+	# The desktop entry also receives the com.ampcode.amp.linux.auth sign-in callback.
+	sed 's|@BIN@|/usr/bin/amp-linux-desktop|g' data/dev.ampnative.Amp.desktop |
+		install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/dev.ampnative.Amp.desktop"
+
+	install -Dm644 -t "$pkgdir/usr/share/amp-native/icons" "$srcdir"/icons/*.png
+	install -Dm644 "$srcdir/icons/dark.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/dev.ampnative.Amp.png"
+}
