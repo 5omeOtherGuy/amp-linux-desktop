@@ -100,7 +100,6 @@ this repository does not carry them. Optional packages add features:
 
 | Package | Adds |
 |---|---|
-| `python-livekit` (AUR) | Huddles |
 | `gst-plugins-base`, `gst-plugins-good` | dictation and the Huddle camera |
 | `gst-libav` | the video in an orb thread's Desktop and Mac tabs |
 | `ampcode` (AUR) | the Amp CLI for the runner. Without it, Amp installs the CLI when you turn the runner on. |
@@ -116,7 +115,7 @@ the [latest release](https://github.com/5omeOtherGuy/amp-linux-desktop/releases/
 install it with its dependencies:
 
 ```sh
-sudo apt install ./amp-linux-desktop_*_all.deb
+sudo apt install ./amp-linux-desktop_*_amd64.deb
 ```
 
 The `.deb` does not update itself; install the next release's `.deb` the same way.
@@ -130,32 +129,34 @@ sudo dnf install amp-linux-desktop
 
 `dnf upgrade` then keeps the app current.
 
-### Amp's icons, Huddles, and orb video on Debian, Ubuntu, and Fedora
+### Amp's icons and orb video on Debian, Ubuntu, and Fedora
 
 - The `.deb` and the `.rpm` do not contain Amp's icons. On the first start the app downloads Amp's
   macOS disk image (13 MB) once and extracts them with 7-Zip. Until then, the launcher shows a
   generic icon.
-- Huddles need the LiveKit Python SDK, which these distributions do not package. Install it for
-  your user with `pip install --user --break-system-packages livekit`.
 - The video in an orb thread's Desktop and Mac tabs needs an H.264 decoder: `gstreamer1.0-libav`
   on Debian and Ubuntu (recommended by the `.deb`), `gstreamer1-plugin-openh264` on Fedora
   (recommended by the `.rpm`).
 
 ### Any distribution, from a checkout
 
-`scripts/install` installs the app for your user from a checkout. It needs Python 3 with PyGObject,
-GTK 4, libadwaita 1.2 or later, and WebKitGTK 6.0, plus 7-Zip to extract the icons:
+`scripts/install` builds the app from a checkout and installs it for your user. It needs a Rust
+toolchain (cargo), clang, the headers of GTK 4, libadwaita 1.2 or later, WebKitGTK 6.0, GStreamer and
+libsoup 3, and 7-Zip to extract the icons:
 
-- Debian and Ubuntu: `apt install python3-gi gir1.2-adw-1 gir1.2-webkit-6.0 gstreamer1.0-libav 7zip`
-- Arch: `pacman -S python-gobject gtk4 libadwaita webkitgtk-6.0 gst-libav 7zip`
+- Debian and Ubuntu: `apt install cargo clang libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev
+  libgstreamer-plugins-base1.0-dev libsoup-3.0-dev libsqlite3-dev gstreamer1.0-libav 7zip`. The app
+  needs Rust 1.96 or later; if your distribution's is older, install Rust with
+  [rustup](https://rustup.rs).
+- Arch: `pacman -S rust clang gtk4 libadwaita webkitgtk-6.0 gst-plugins-base-libs gst-libav 7zip`
 
 ```sh
 scripts/install
 ```
 
-The script adds the `amp-linux-desktop` launcher to `~/.local/bin`, the desktop entry (which also
-receives the sign-in callback), and Amp's icons. It installs the `livekit` Python package for
-Huddles under `~/.local/share/amp-native/python`. Dictation and the Huddle camera also need
+The script builds the release binary, copies it to `~/.local/bin/amp-linux-desktop`, and adds the
+desktop entry (which also receives the sign-in callback) and Amp's icons. The first build downloads
+LiveKit's prebuilt WebRTC library for Huddles (156 MB). Dictation and the Huddle camera also need
 GStreamer's base and good plugins.
 
 ## Bind desktop-wide shortcuts
@@ -171,7 +172,7 @@ bind = SUPER, slash, exec, amp-linux-desktop --action toggle-puck
 
 ## Development
 
-`python3 -m amp_native` runs the app from a checkout. With `AMP_NATIVE_DEBUG=1`, the app logs every
+`cargo run` builds and runs the app from a checkout. With `AMP_NATIVE_DEBUG=1`, the app logs every
 bridge message to `~/.cache/amp-native/amp-native.log`. The scripts in `dev/` run only inside an
 Amp orb's Desktop. `packaging/arch` holds the AUR package, `packaging/debian/build-deb` builds the
 `.deb`, and `packaging/fedora` holds the COPR spec file. [`CHANGELOG.md`](CHANGELOG.md) lists the

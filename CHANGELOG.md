@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+
+- The app is written in Rust now and ships as one binary, with the same features, settings, and
+  sign-in. Huddles no longer need the LiveKit Python package: the binary includes LiveKit's SDK.
+- The Arch package, the `.deb`, and the `.rpm` are built for x86_64 only, because Huddles link
+  LiveKit's prebuilt WebRTC library. The `.deb` is now `amp-linux-desktop_VERSION-1_amd64.deb`.
+- `scripts/install` needs a Rust toolchain and clang, builds the app, and copies the binary to
+  `~/.local/bin`. It removes the LiveKit Python package that earlier versions installed.
+
 ## 0.1.1 - 2026-11-06
 
 ### Added

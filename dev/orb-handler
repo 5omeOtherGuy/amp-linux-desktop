@@ -4,4 +4,4 @@
 # session bus first, then forward the URL to the running instance.
 dev=$(cd "$(dirname "$0")" && pwd)
 . "$dev/desk-env.sh"
-cd "$dev/.." && exec /usr/bin/python3 -m amp_native "$@" >>/tmp/amp-native-handler.log 2>&1
+cd "$dev/.." && exec target/debug/amp-linux-desktop "$@" >>/tmp/amp-native-handler.log 2>&1
