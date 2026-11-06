@@ -580,8 +580,8 @@ class AmpApplication(Adw.Application):
 
     def set_app_icon(self, key):
         self.settings.set("app_icon", key)
-        source = config.ICON_DIR / f"{key}.png"
-        if not source.exists():
+        source = config.icon_file(key)
+        if source is None:
             return
         target = Path(GLib.get_user_data_dir()) / "icons/hicolor/512x512/apps" / f"{config.APP_ID}.png"
         target.parent.mkdir(parents=True, exist_ok=True)

@@ -10,8 +10,9 @@ The room and identity are the same ones the page would use, so others see an ord
 participant. Not covered: screen sharing from Linux and the page's per-phrase transcription
 upload; the window says when a call is being transcribed.
 
-The SDK is the `livekit` Python package. scripts/install puts it in DATA_DIR/python; without it
-the handler is not registered and the page keeps its own (failing) path.
+The SDK is the `livekit` Python package: python-livekit with the Arch package, or DATA_DIR/python,
+where scripts/install puts it. Without it the handler is not registered and the page keeps its own
+(failing) path.
 """
 
 import asyncio

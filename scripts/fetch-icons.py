@@ -4,8 +4,14 @@
 The icons are Amp's artwork, so the repository does not carry them; this script takes them from
 https://static.ampcode.com/mac/latest.dmg at install time. It needs 7z (the 7zip package) to open
 the disk image.
+
+    fetch-icons.py [--dmg PATH] [--out DIR]
+
+--dmg reads a disk image already downloaded instead (the Arch package pins one), and --out writes
+the icons to DIR instead of the user's data dir.
 """
 
+import argparse
 import shutil
 import struct
 import subprocess
@@ -34,23 +40,28 @@ def largest_png(icns):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Extract Amp's app icons from its macOS disk image.")
+    parser.add_argument("--dmg", type=Path, help="a downloaded disk image (default: download the latest)")
+    parser.add_argument("--out", type=Path, default=config.ICON_DIR, help="output directory")
+    args = parser.parse_args()
     sevenzip = shutil.which("7z") or shutil.which("7zz")
     if not sevenzip:
         sys.exit("fetch-icons: install 7z (7zip) to extract the icons from Amp's disk image")
-    config.ICON_DIR.mkdir(parents=True, exist_ok=True)
+    args.out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
-        dmg = Path(tmp) / "amp.dmg"
-        urllib.request.urlretrieve(DMG_URL, dmg)
+        dmg = args.dmg or Path(tmp) / "amp.dmg"
+        if args.dmg is None:
+            urllib.request.urlretrieve(DMG_URL, dmg)
         subprocess.run([sevenzip, "x", "-y", f"-o{tmp}/x", str(dmg), "Amp.app/Contents/Resources/*.icns"],
                        check=True, stdout=subprocess.DEVNULL)
         resources = Path(tmp) / "x/Amp.app/Contents/Resources"
         for key, name in VARIANTS.items():
             png = largest_png(resources / name) if (resources / name).exists() else b""
             if png:
-                (config.ICON_DIR / f"{key}.png").write_bytes(png)
+                (args.out / f"{key}.png").write_bytes(png)
                 print(f"fetch-icons: {key}.png")
-    if (config.ICON_DIR / "dark.png").exists():
-        shutil.copyfile(config.ICON_DIR / "dark.png", config.ICON_DIR / "app.png")
+    if (args.out / "dark.png").exists():
+        shutil.copyfile(args.out / "dark.png", args.out / "app.png")
 
 
 if __name__ == "__main__":

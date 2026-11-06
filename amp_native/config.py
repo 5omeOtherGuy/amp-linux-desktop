@@ -29,8 +29,16 @@ CACHE_DIR = _xdg("XDG_CACHE_HOME", ".cache") / "amp-native"
 STATE_FILE = CONFIG_DIR / "settings.json"
 LOG_FILE = CACHE_DIR / "amp-native.log"
 RUNNER_LOG = CACHE_DIR / "runner.log"
-STDERR_LOG = CACHE_DIR / "stderr.log"  # written by the launcher scripts/install creates
-ICON_DIR = DATA_DIR / "icons"
+STDERR_LOG = CACHE_DIR / "stderr.log"  # written by the amp-linux-desktop launcher
+ICON_DIR = DATA_DIR / "icons"  # where scripts/fetch-icons.py puts Amp's icons for this user
+# The Arch package installs them for all users here instead.
+SYSTEM_ICON_DIRS = [Path(d) / "amp-native" / "icons"
+                    for d in (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":") if d]
+
+
+def icon_file(key):
+    """The PNG of an app icon variant (dark, oled, light, puck, app), or None without Amp's icons."""
+    return next((d / f"{key}.png" for d in (ICON_DIR, *SYSTEM_ICON_DIRS) if (d / f"{key}.png").exists()), None)
 
 ZOOM_FACTORS = [0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 

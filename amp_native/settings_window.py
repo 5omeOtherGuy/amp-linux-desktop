@@ -111,8 +111,8 @@ class SettingsWindow(Adw.PreferencesWindow):
         g.add(self.zoom_row)
         page.append(g)
 
-        icons = [(key, label, config.ICON_DIR / f"{key}.png") for key, label in ICON_CHOICES]
-        icons = [icon for icon in icons if icon[2].exists()]
+        icons = [(key, label, config.icon_file(key)) for key, label in ICON_CHOICES]
+        icons = [icon for icon in icons if icon[2]]
         if icons:
             g2 = group("App Icon", "Shows in the launcher and app switcher while Amp is open.")
             flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=4,
@@ -446,10 +446,8 @@ class SettingsWindow(Adw.PreferencesWindow):
         page = new_page()
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, css_classes=["card"])
         top = Gtk.Box(spacing=36, margin_top=36, margin_start=44, margin_end=44, margin_bottom=24)
-        icon_path = config.ICON_DIR / f"{self.settings['app_icon']}.png"
-        if not icon_path.exists():
-            icon_path = config.ICON_DIR / "app.png"
-        if icon_path.exists():
+        icon_path = config.icon_file(self.settings["app_icon"]) or config.icon_file("app")
+        if icon_path:
             picture = Gtk.Picture.new_for_filename(str(icon_path))
             picture.set_size_request(104, 104)
             picture.set_can_shrink(True)
