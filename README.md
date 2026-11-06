@@ -43,17 +43,19 @@ build 1125 (`https://static.ampcode.com/mac/Amp-1.0-1125.dmg`, 2026-11-06). The 
 | macOS app feature | Linux | Linux proof | macOS reference |
 |---|---|---|---|
 | ampcode.com in its desktop layout | Yes | [start screen](docs/img/start.png), `scripts.py` `shell_markers` | user script that sets `dataset.ampShell` |
-| Menu bar with keyboard shortcuts and zoom | Yes | [View menu](docs/img/menu.png), `app.py` `MENUS`, `AmpApplication.handle_shortcut` | `MacWebCommandController`, `MacWebZoomController`, menu items `Personal Settings` and `Workspace Settings` |
+| Menu bar with keyboard shortcuts and zoom | Partial: File, Edit, View, and Help. There is no Amp or Window menu. | [View menu](docs/img/menu.png), `app.py` `MENUS`, `AmpApplication.handle_shortcut` | `MacWebCommandController`, `MacWebZoomController`, menu items `Personal Settings` and `Workspace Settings` |
 | Settings window | Yes | [General](docs/img/settings.png), [Runner](docs/img/runner.png), `settings_window.py` `SettingsWindow` | `MacAppSettingsMessageHandler`, `Warn Before Quitting`, `MacAppIconController` |
 | Open at login | Not verified | `app.py` `AmpApplication.set_open_at_login` | `SMAppService` |
 | More than one window | Not verified | `app.py` `AmpApplication.open_window` | `MacOpenWindowMessageHandler` |
 | Puck, in the main window or its own window | Yes | `bridge.py` `_msg_ampNativeOpenPuckWindow`, `_msg_ampNativeTogglePuckWindow` | `NativeOpenPuckWindow`, `NativeTogglePuckWindow`, `PuckWindow` |
 | Sign-in through the system browser | Yes | `signin.py` `SignIn`, callback scheme `com.ampcode.amp.linux.auth` | Info.plist `CFBundleURLTypes`: `com.ampcode.amp.macos.auth`, `NativeAuthenticationMessageHandler` |
 | Passkeys | Not verified | `window.py` `_decide_policy` opens the page's **Open in Browser** in your browser | `NativePasskeyDiagnosticsMessageHandler` |
+| Confirm your identity again for sensitive actions | Not verified | no `ampNativeSudoAuthenticated` handler | `ampNativeSudoAuthenticated`, `authenticateSudo` |
 | Account switcher | No | no `ampNativeAccountSwitch` handler | `ampNativeAccountSwitch` |
 | Copy to the clipboard | Yes | `window.py` `_write_clipboard` | `ampNativeClipboard`, `ampNativeClipboardWrite` |
 | Paste images | Yes | `files.py` `read_pasteboard_images` | `MacPasteboardImagesMessageHandler` |
 | Native confirmation dialogs | Partial: protocol v2 (title, text, message, phrase, checkbox). Dialogs with choices or fields stay in the page. | `confirmation.py` `ConfirmationSheet`, `scripts.py` `shell_markers` | `MacNativeConfirmationSheetWindow`, `ampNativeConfirmationAlert = 'v5'` |
+| Native actions on selected transcript text | No | no `ampNativeTranscriptSelectionV2` handler | `ampNativeTranscriptSelectionV2` |
 | Toasts | Yes | `toasts.py` `ToastCenter` | `NativeToastMessageHandler` |
 | Open a file in your editor | Yes | `files.py` `open_in_editor` | `MacOpenInEditorMessageHandler` |
 | Show a file in the file manager | Yes | `files.py` `show_in_file_manager` | `MacShowInFinderMessageHandler` |
