@@ -1,6 +1,6 @@
 # Runner folders, Import Threads and the runner's CLI
 
-Preferences → Runner lists the folders this computer offers to Amp; its `+` menu has Choose Projects… (a sheet of discovered projects to tick) and Add Folder…. Preferences → General → Other Coding Agents → Import Threads… imports conversations from other coding agents through the Amp CLI. When the CLI is not signed in, the runner row says so and offers Sign In….
+App Settings → Runner lists the folders this computer offers to Amp; its `+` menu has Choose Projects… (a sheet of discovered projects to tick) and Add Folder…. App Settings → General → Other Coding Agents → Import Threads… imports conversations from other coding agents through the Amp CLI. When the CLI is not signed in, the runner row says so and offers Sign In….
 
 ## Sub-features
 
@@ -10,8 +10,8 @@ Preferences → Runner lists the folders this computer offers to Amp; its `+` me
 
 ## How to get to it (user POV)
 
-- Edit → Preferences (Alt shows the menu bar), or the tray's Settings…, → Runner → the `+` beside Directories.
-- Preferences → General, scroll to Other Coding Agents, Import Threads….
+- Amp → App Settings… (Alt shows the menu bar), or the tray's Settings…, → Runner → the `+` beside Directories.
+- App Settings → General, scroll to Other Coding Agents, Import Threads….
 
 ## Driving it with verify-amp
 
@@ -21,7 +21,7 @@ Preconditions:
 
 - **Choose Projects.** Open the `+` menu, Choose Projects…, tick a project, Add Projects; the folder appears in the list and in the run's `settings.json`. Remove it again afterwards with its row's remove button.
 - **Import.** Open Import Threads…, click Import on Claude Code, screenshot the running and the done state; Import All runs the agents one after another.
-- **Not signed in.** `verify-amp launch RUN --set runner_enabled=true`, open Preferences → Runner, screenshot the runner row: "The Amp CLI is not signed in on this computer." with Sign In…. The CLI the app starts inherits the run's `XDG_CONFIG_HOME`/`XDG_DATA_HOME`, finds no credentials there and stops with `not_logged_in` before it registers anything (its `fatal` event is in the run's runner log).
+- **Not signed in.** `verify-amp launch RUN --set runner_enabled=true`, open App Settings → Runner, screenshot the runner row: "The Amp CLI is not signed in on this computer." with Sign In…. The CLI the app starts inherits the run's `XDG_CONFIG_HOME`/`XDG_DATA_HOME`, finds no credentials there and stops with `not_logged_in` before it registers anything (its `fatal` event is in the run's runner log).
 
 ## Gotchas
 

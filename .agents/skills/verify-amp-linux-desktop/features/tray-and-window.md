@@ -5,7 +5,7 @@ The tray icon's menu mirrors the Mac's menu bar extra: Open Amp, New Thread, Puc
 ## Sub-features
 
 - `tray-menu` the menu shows the items above; a thread row opens that thread.
-- `tray-runner-switch` a runner switch in the tray and the same switch in Preferences → Runner follow each other, both ways, and change the run's `settings.json`.
+- `tray-runner-switch` a runner switch in the tray and the same switch in App Settings → Runner follow each other, both ways, and change the run's `settings.json`.
 - `window-min-max` minimize, maximize and restore.
 
 ## How to get to it (user POV)

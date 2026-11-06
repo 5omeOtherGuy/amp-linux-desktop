@@ -14,6 +14,21 @@ const WINDOW_LIST: &str = "app.present-window";
 
 const MENUS: &[(&str, &[Entry])] = &[
     (
+        // The Mac's application menu. Settings live here, as on the Mac, not under Edit.
+        "Amp",
+        &[
+            Some(("About Amp", "app.about", None)),
+            Some(("Check for Updates…", "app.check-updates", None)),
+            None,
+            Some(("Personal Settings", "win.personal-settings", Some("<Control>comma"))),
+            Some(("Workspace Settings", "win.workspace-settings", Some("<Control><Alt>comma"))),
+            Some(("App Settings…", "app.app-settings", Some("<Control><Shift>comma"))),
+            None,
+            Some(("Warn Before Quitting", "app.warn-before-quitting", None)),
+            Some(("Quit Amp", "app.quit", Some("<Control>q"))),
+        ],
+    ),
+    (
         "File",
         &[
             Some(("New Thread", "win.new-thread", None)),
@@ -23,7 +38,6 @@ const MENUS: &[(&str, &[Entry])] = &[
             None,
             Some(("Close", "win.close", Some("<Control>w"))),
             Some(("Close Window", "win.close-window", Some("<Control><Shift>w"))),
-            Some(("Quit", "app.quit", Some("<Control>q"))),
         ],
     ),
     (
@@ -36,10 +50,6 @@ const MENUS: &[(&str, &[Entry])] = &[
             Some(("Copy", "win.copy", Some("<Control>c"))),
             Some(("Paste", "win.paste", Some("<Control>v"))),
             Some(("Select All", "win.select-all", Some("<Control>a"))),
-            None,
-            Some(("Personal Settings", "win.personal-settings", Some("<Control>comma"))),
-            Some(("Workspace Settings", "win.workspace-settings", Some("<Control><Alt>comma"))),
-            Some(("Preferences", "app.app-settings", Some("<Control><Shift>comma"))),
         ],
     ),
     (
@@ -82,8 +92,6 @@ const MENUS: &[(&str, &[Entry])] = &[
             Some(("Keyboard Shortcuts", "win.keyboard-shortcuts", Some("<Control>question"))),
             Some(("Amp Manual", "app.docs", None)),
             Some(("Report Bug…", "win.report-bug", None)),
-            None,
-            Some(("About Amp", "app.about", None)),
         ],
     ),
 ];

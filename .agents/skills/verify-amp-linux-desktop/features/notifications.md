@@ -10,7 +10,7 @@ Once notifications are enabled, the sidebar's "Turn On Notifications" card stays
 
 ## How to get to it (user POV)
 
-- The sidebar card's `Enable Notifications`, or Preferences → Notifications.
+- The sidebar card's `Enable Notifications`, or App Settings → Notifications.
 - Notifications appear when a thread needs attention and its window is not focused.
 
 ## Driving it with verify-amp

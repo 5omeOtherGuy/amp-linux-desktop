@@ -572,6 +572,7 @@ impl App {
     fn add_actions(self: &Rc<Self>) {
         self.add_action("about", |app| app.show_app_settings(Some("about")));
         self.add_action("app-settings", |app| app.show_app_settings(None));
+        self.add_action("check-updates", |app| app.show_app_settings(Some("updates")));
         self.add_action("quit", |app| app.quit_all());
         self.add_action("new-window", |app| {
             app.open_window("/", None);
