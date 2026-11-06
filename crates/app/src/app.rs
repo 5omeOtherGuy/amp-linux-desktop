@@ -383,7 +383,7 @@ impl App {
             server_url: server_url.into(),
             participant_token: token.into(),
         };
-        let window_slot: Rc<RefCell<Option<amp_huddle::HuddleWindow>>> = Rc::default();
+        let window_slot: Rc<RefCell<Option<amp_huddle::WeakHuddleWindow>>> = Rc::default();
         let (weak, id, slot) = (Rc::downgrade(self), thread_id.clone(), window_slot.clone());
         let reconcile_weak = weak.clone();
         let reconcile_id = id.clone();
@@ -396,8 +396,9 @@ impl App {
             ended: Box::new(move |message| {
                 let Some(app) = weak.upgrade() else { return };
                 let current = app.huddles.borrow().get(&id).cloned();
-                if let (Some(current), Some(this)) = (current, slot.borrow().as_ref())
-                    && current.is(this)
+                let this = slot.borrow().as_ref().and_then(|w| w.upgrade());
+                if let (Some(current), Some(this)) = (current, this)
+                    && current.is(&this)
                 {
                     app.huddles.borrow_mut().remove(&id);
                 }
@@ -407,7 +408,7 @@ impl App {
             }),
         };
         let window = amp_huddle::HuddleWindow::new(&self.adw, request, hooks);
-        *window_slot.borrow_mut() = Some(window.clone());
+        *window_slot.borrow_mut() = Some(window.downgrade());
         self.huddles.borrow_mut().insert(thread_id, window.clone());
         window.present();
     }

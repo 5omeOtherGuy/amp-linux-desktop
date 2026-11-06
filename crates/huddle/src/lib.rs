@@ -14,7 +14,7 @@ mod call;
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::time::Duration;
 
 use adw::prelude::*;
@@ -119,12 +119,25 @@ struct Inner {
     end_message: RefCell<Option<String>>,
     /// Receives once the call has disconnected after leaving.
     disconnected: RefCell<Option<std::sync::mpsc::Receiver<()>>>,
+    /// Keeps the closed window alive until the call has left (Left), so it can still reconcile
+    /// and shut its runtime down; nothing else holds it then.
+    leaving: RefCell<Option<HuddleWindow>>,
 }
 
 /// The call window: a tile per participant (and per shared screen), and mute, camera and leave
 /// buttons.
 #[derive(Clone)]
 pub struct HuddleWindow(Rc<Inner>);
+
+/// A reference to a call window that does not keep it open.
+#[derive(Clone)]
+pub struct WeakHuddleWindow(Weak<Inner>);
+
+impl WeakHuddleWindow {
+    pub fn upgrade(&self) -> Option<HuddleWindow> {
+        self.0.upgrade().map(HuddleWindow)
+    }
+}
 
 impl HuddleWindow {
     pub fn new(app: &adw::Application, request: JoinRequest, hooks: AppHooks) -> Self {
@@ -213,6 +226,7 @@ impl HuddleWindow {
             left: Cell::new(false),
             end_message: RefCell::default(),
             disconnected: RefCell::default(),
+            leaving: RefCell::default(),
         }));
         let inner = &huddle.0;
         let weak = Rc::downgrade(inner);
@@ -227,8 +241,14 @@ impl HuddleWindow {
                 let _ = inner.commands.send(Command::SetCamera(b.is_active()));
             }
         });
-        let window = inner.window.clone();
-        leave.connect_clicked(move |_| window.close());
+        // A weak reference: the button belongs to the window, and GTK does not dispose a closed
+        // window, so a strong one would keep it alive.
+        let window = inner.window.downgrade();
+        leave.connect_clicked(move |_| {
+            if let Some(window) = window.upgrade() {
+                window.close();
+            }
+        });
         let weak = Rc::downgrade(inner);
         inner.window.connect_close_request(move |_| {
             if let Some(inner) = weak.upgrade() {
@@ -254,6 +274,10 @@ impl HuddleWindow {
         self.0.window.close();
     }
 
+    pub fn downgrade(&self) -> WeakHuddleWindow {
+        WeakHuddleWindow(Rc::downgrade(&self.0))
+    }
+
     pub fn is(&self, other: &HuddleWindow) -> bool {
         Rc::ptr_eq(&self.0, &other.0)
     }
@@ -271,6 +295,7 @@ impl HuddleWindow {
         if inner.left.replace(true) {
             return;
         }
+        *inner.leaving.borrow_mut() = Some(self.clone());
         let (done, disconnected) = std::sync::mpsc::channel();
         *inner.disconnected.borrow_mut() = Some(disconnected);
         // The call task reports Left; this thread may block on `disconnected` while quitting, so
@@ -397,6 +422,7 @@ impl HuddleWindow {
                 if let Some(runtime) = inner.runtime.take() {
                     runtime.shutdown_background();
                 }
+                inner.leaving.take();
             }
         }
     }
