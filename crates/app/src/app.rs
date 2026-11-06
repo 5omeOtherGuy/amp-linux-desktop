@@ -808,6 +808,11 @@ impl App {
             window.window.set_icon_name(None);
             window.window.set_icon_name(Some(APP_ID));
         }
+        self.tray.set_icon(key);
+        let settings_window = self.settings_window.borrow().clone();
+        if let Some(settings_window) = settings_window {
+            settings_window.refresh_app_icon(key);
+        }
     }
 
     // ---- notifications and badge -----------------------------------------------------------

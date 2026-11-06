@@ -28,6 +28,7 @@ const SNI_XML: &str = r#"
     <property name="Title" type="s" access="read"/>
     <property name="Status" type="s" access="read"/>
     <property name="IconName" type="s" access="read"/>
+    <property name="IconPixmap" type="a(iiay)" access="read"/>
     <property name="IconThemePath" type="s" access="read"/>
     <property name="AttentionIconName" type="s" access="read"/>
     <property name="ToolTip" type="(sa(iiay)ss)" access="read"/>
@@ -89,8 +90,31 @@ pub struct Tray {
     /// Menu items by ID (1-based), with what a click on them does.
     items: RefCell<Vec<(Props, Option<Action>)>>,
     connection: RefCell<Option<gio::DBusConnection>>,
+    /// The chosen app icon as ARGB32 images, which hosts draw instead of looking up the app's icon
+    /// name in their own icon theme, where a changed icon file would not show until they restart.
+    pixmaps: RefCell<Vec<(i32, i32, Vec<u8>)>>,
     /// The bus name while the icon shows; hosts drop the item when it is released.
     owner: RefCell<Option<gio::OwnerId>>,
+}
+
+/// The icon at the sizes trays use, as StatusNotifierItem pixmaps: ARGB32 in network byte order.
+fn argb_pixmaps(path: &std::path::Path) -> Vec<(i32, i32, Vec<u8>)> {
+    [32, 64]
+        .into_iter()
+        .filter_map(|size| gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(path, size, size, true).ok())
+        .map(|pixbuf| {
+            let pixbuf = pixbuf.add_alpha(false, 0, 0, 0).unwrap_or(pixbuf);
+            let (width, height, stride) = (pixbuf.width(), pixbuf.height(), pixbuf.rowstride() as usize);
+            let bytes = pixbuf.read_pixel_bytes();
+            let mut argb = Vec::with_capacity((width * height * 4) as usize);
+            for row in 0..height as usize {
+                for [r, g, b, a] in bytes[row * stride..][..width as usize * 4].as_chunks::<4>().0 {
+                    argb.extend_from_slice(&[*a, *r, *g, *b]);
+                }
+            }
+            (width, height, argb)
+        })
+        .collect()
 }
 
 fn service_name() -> String {
@@ -161,7 +185,16 @@ impl Tray {
             |_, _| {},
         );
         *self.connection.borrow_mut() = Some(connection);
+        self.set_icon(&app.settings.str("app_icon"));
         self.set_visible(app.settings.bool("show_in_tray"));
+    }
+
+    /// Shows the app icon variant `key` (dark, oled, light, puck), as the Mac's status item follows
+    /// the app icon.
+    pub fn set_icon(&self, key: &str) {
+        let path = amp_common::config::icon_file(key).or_else(|| amp_common::config::icon_file("app"));
+        *self.pixmaps.borrow_mut() = path.map(|path| argb_pixmaps(&path)).unwrap_or_default();
+        self.emit(ITEM_PATH, "org.kde.StatusNotifierItem", "NewIcon", None);
     }
 
     /// Shows or hides the icon (Show Amp in Tray), as the Mac adds or removes its status item.
@@ -254,7 +287,10 @@ impl Tray {
             "Id" => "amp".to_variant(),
             "Title" => self.title().to_variant(),
             "Status" => "Active".to_variant(),
+            // Hosts prefer the name to the pixmap, so the name is left empty while there is one.
+            "IconName" | "AttentionIconName" if !self.pixmaps.borrow().is_empty() => "".to_variant(),
             "IconName" | "AttentionIconName" => APP_ID.to_variant(),
+            "IconPixmap" => self.pixmaps.borrow().to_variant(),
             "IconThemePath" => "".to_variant(),
             "ToolTip" => (APP_ID, Vec::<(i32, i32, Vec<u8>)>::new(), "Amp", self.tooltip_body()).to_variant(),
             "ItemIsMenu" => false.to_variant(),

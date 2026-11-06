@@ -88,6 +88,8 @@ pub struct SettingsWindow {
     dir_rows: RefCell<Vec<gtk::Widget>>,
     notification_status: gtk::Label,
     notification_button: gtk::Button,
+    /// The About tab's app icon, which follows the App Icon choice.
+    about_icon: gtk::Picture,
     #[allow(deprecated)]
     chooser: RefCell<Option<gtk::FileChooserNative>>,
 }
@@ -121,6 +123,7 @@ impl SettingsWindow {
                 .label("Enable Notifications")
                 .valign(gtk::Align::Center)
                 .build(),
+            about_icon: gtk::Picture::builder().can_shrink(true).build(),
             chooser: RefCell::default(),
         });
         for (key, label, icon_name) in TABS {
@@ -741,17 +744,20 @@ impl SettingsWindow {
 
     // ---- About -----------------------------------------------------------------------------
 
+    pub fn refresh_app_icon(&self, key: &str) {
+        let path = config::icon_file(key).or_else(|| config::icon_file("app"));
+        self.about_icon.set_filename(path.as_ref());
+        self.about_icon.set_visible(path.is_some());
+    }
+
     fn build_about(&self, app: &Rc<App>) -> Vec<adw::PreferencesGroup> {
         let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
         card.add_css_class("card");
         let top =
             gtk::Box::builder().spacing(36).margin_top(36).margin_start(44).margin_end(44).margin_bottom(24).build();
-        if let Some(path) = config::icon_file(&app.settings.str("app_icon")).or_else(|| config::icon_file("app")) {
-            let picture = gtk::Picture::for_filename(&path);
-            picture.set_size_request(104, 104);
-            picture.set_can_shrink(true);
-            top.append(&picture);
-        }
+        self.about_icon.set_size_request(104, 104);
+        self.refresh_app_icon(&app.settings.str("app_icon"));
+        top.append(&self.about_icon);
         let info =
             gtk::Box::builder().orientation(gtk::Orientation::Vertical).spacing(4).valign(gtk::Align::Center).build();
         let wordmark = gtk::Label::builder().label("amp").xalign(0.0).build();
