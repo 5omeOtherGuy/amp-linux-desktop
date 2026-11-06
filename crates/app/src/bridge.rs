@@ -502,6 +502,7 @@ pub fn add_window_actions(app: &Rc<App>, window: &Rc<AmpWindow>) {
             }
         }),
     );
+    add("close-window", Box::new(|w| w.window.close()));
     add(
         "print",
         Box::new(|w| {

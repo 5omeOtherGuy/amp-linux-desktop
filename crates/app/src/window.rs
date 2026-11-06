@@ -269,6 +269,9 @@ impl AmpWindow {
             if let Some(this) = weak.upgrade() {
                 let title = view.title().filter(|t| !t.is_empty());
                 this.window.set_title(Some(title.as_deref().unwrap_or(APP_NAME)));
+                if let Some(app) = this.app() {
+                    app.refresh_window_list();
+                }
             }
         });
         view.connect_context_menu(|_, menu, _| {

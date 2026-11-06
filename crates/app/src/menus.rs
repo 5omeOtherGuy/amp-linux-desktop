@@ -9,6 +9,9 @@ use gtk::{gdk, gio, glib, prelude::*};
 /// A menu entry: label, action, accelerator. `None` separates sections.
 type Entry = Option<(&'static str, &'static str, Option<&'static str>)>;
 
+/// Where the Window menu lists the open windows, as the Mac's Window menu does.
+const WINDOW_LIST: &str = "app.present-window";
+
 pub const MENUS: &[(&str, &[Entry])] = &[
     (
         "File",
@@ -19,6 +22,7 @@ pub const MENUS: &[(&str, &[Entry])] = &[
             Some(("Print…", "win.print", Some("<Control>p"))),
             None,
             Some(("Close", "win.close", Some("<Control>w"))),
+            Some(("Close Window", "win.close-window", Some("<Control><Shift>w"))),
             Some(("Quit", "app.quit", Some("<Control>q"))),
         ],
     ),
@@ -58,6 +62,19 @@ pub const MENUS: &[(&str, &[Entry])] = &[
         ],
     ),
     (
+        // The Mac's ⌘M would take the composer's Ctrl+M, so Minimize has no shortcut; tiling
+        // (Fill, Center, Tile) is the compositor's on Linux.
+        "Window",
+        &[
+            Some(("Minimize", "win.minimize", None)),
+            Some(("Maximize", "win.zoom", None)),
+            None,
+            Some(("", WINDOW_LIST, None)),
+            None,
+            Some(("Bring All to Front", "app.bring-all", None)),
+        ],
+    ),
+    (
         "Help",
         &[
             Some(("Keyboard Shortcuts", "win.keyboard-shortcuts", Some("<Control>question"))),
@@ -68,6 +85,10 @@ pub const MENUS: &[(&str, &[Entry])] = &[
         ],
     ),
 ];
+
+/// Items that only show while their action is enabled, as the Mac shows Close Window only next
+/// to Close Tab.
+const HIDDEN_WHEN_DISABLED: &[&str] = &["win.close-window"];
 
 /// Shortcuts that also work without the menu, matching common Linux habits.
 const EXTRA_ACCELS: &[(&str, &[&str])] = &[
@@ -107,6 +128,19 @@ pub struct Menus {
     pub model: gio::Menu,
     shortcuts: Vec<Shortcut>,
     labels: RefCell<HashMap<&'static str, Label>>,
+    /// The Window menu's section that lists the open windows.
+    window_list: gio::Menu,
+}
+
+fn menu_item(label: &str, action: &str, accel: Option<&str>) -> gio::MenuItem {
+    let item = gio::MenuItem::new(Some(label), Some(action));
+    if let Some(accel) = accel {
+        item.set_attribute_value("accel", Some(&accel.to_variant()));
+    }
+    if HIDDEN_WHEN_DISABLED.contains(&action) {
+        item.set_attribute_value("hidden-when", Some(&"action-disabled".to_variant()));
+    }
+    item
 }
 
 impl Menus {
@@ -114,6 +148,7 @@ impl Menus {
         let model = gio::Menu::new();
         let mut shortcuts = Vec::new();
         let mut labels = HashMap::new();
+        let window_list = gio::Menu::new();
         let mut add_shortcut = |accel: &str, action: &'static str| {
             if let Some((key, mods)) = gtk::accelerator_parse(accel) {
                 shortcuts.push(Shortcut { key, mods, action });
@@ -128,12 +163,15 @@ impl Menus {
                     section = gio::Menu::new();
                     continue;
                 };
-                let item = gio::MenuItem::new(Some(label), Some(action));
-                if let Some(accel) = accel {
-                    item.set_attribute_value("accel", Some(&accel.to_variant()));
-                    if !WEB_HANDLED.contains(&action) {
-                        add_shortcut(accel, action);
-                    }
+                if action == WINDOW_LIST {
+                    section = window_list.clone();
+                    continue;
+                }
+                let item = menu_item(label, action, accel);
+                if let Some(accel) = accel
+                    && !WEB_HANDLED.contains(&action)
+                {
+                    add_shortcut(accel, action);
                 }
                 let index = section.n_items();
                 labels.insert(action, Label { section: section.clone(), index, label: label.to_string(), accel });
@@ -147,20 +185,28 @@ impl Menus {
                 add_shortcut(accel, action);
             }
         }
-        Self { model, shortcuts, labels: RefCell::new(labels) }
+        Self { model, shortcuts, labels: RefCell::new(labels), window_list }
     }
 
-    /// Relabels a menu item, as the Mac app does for Show/Hide Sidebar and Close/Close Tab.
+    /// Lists the open windows by title in the Window menu; choosing one shows it.
+    pub fn set_windows(&self, titles: &[String]) {
+        self.window_list.remove_all();
+        for (index, title) in titles.iter().enumerate() {
+            let item = gio::MenuItem::new(Some(title), None);
+            item.set_action_and_target_value(Some(WINDOW_LIST), Some(&(index as u32).to_variant()));
+            self.window_list.append_item(&item);
+        }
+    }
+
+    /// Relabels a menu item, as the Mac app does for Show/Hide Sidebar and Close/Close Tab/Close
+    /// Window.
     pub fn set_label(&self, action: &str, label: &str) {
         let mut labels = self.labels.borrow_mut();
         let Some(entry) = labels.get_mut(action) else { return };
         if entry.label == label {
             return;
         }
-        let item = gio::MenuItem::new(Some(label), Some(action));
-        if let Some(accel) = entry.accel {
-            item.set_attribute_value("accel", Some(&accel.to_variant()));
-        }
+        let item = menu_item(label, action, entry.accel);
         entry.section.remove(entry.index);
         entry.section.insert_item(entry.index, &item);
         entry.label = label.to_string();

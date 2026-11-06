@@ -144,6 +144,7 @@ impl App {
 
         let _ = self.menus.set(Menus::new());
         self.add_actions();
+        self.update_actions();
         self.tray.start(self);
         if self.settings.bool("runner_enabled") {
             self.runner.apply(self);
@@ -235,6 +236,7 @@ impl App {
         self.windows.borrow_mut().push(window.clone());
         crate::bridge::add_window_actions(self, &window);
         window.window.present();
+        self.refresh_window_list();
         window
     }
 
@@ -244,6 +246,7 @@ impl App {
         let removed = self.find_window(window);
         if let Some(removed) = &removed {
             self.windows.borrow_mut().retain(|w| !Rc::ptr_eq(w, removed));
+            self.refresh_window_list();
         }
         let settings =
             self.settings_window.borrow().as_ref().is_some_and(|s| s.window.upcast_ref::<gtk::Window>() == window);
@@ -457,29 +460,59 @@ impl App {
         let active = self.adw.active_window().and_then(|w| self.find_window(&w));
         let state = active.as_ref().map(|w| w.app_state.borrow().clone()).unwrap_or(json!({}));
         let flag = |key: &str| state.get(key).is_some_and(config::truthy);
-        self.menus().set_label("win.toggle-sidebar", if flag("sidebarOpen") { "Hide Sidebar" } else { "Show Sidebar" });
-        self.menus().set_label("win.toggle-puck", if flag("puckOpen") { "Hide Puck" } else { "Show Puck" });
-        let tab = state.get("paneTabClose").cloned().unwrap_or(json!({}));
-        let closes_tab =
-            tab.get("hasClosableTab").is_some_and(config::truthy) && !tab.get("blocked").is_some_and(config::truthy);
-        self.menus().set_label("win.close", if closes_tab { "Close Tab" } else { "Close" });
+        let menus = self.menus();
+        menus.set_label("win.toggle-sidebar", if flag("sidebarVisible") { "Hide Sidebar" } else { "Show Sidebar" });
+        menus.set_label("win.toggle-puck", if flag("puckOpen") { "Hide Puck" } else { "Show Puck" });
+        // As the Mac: plain Close where the page has no panes, Close Window where it has panes but
+        // no closable tab, else Close Tab, which only works while a tab has focus (the page sends
+        // its label then, and none while the composer has focus).
+        let tab = state.get("paneTabClose").filter(|t| t.is_object());
+        let closable = tab.is_some_and(|t| t.get("hasClosableTab").is_some_and(config::truthy));
+        let tab_focused = tab.is_some_and(|t| {
+            t.get("tabLabel").is_some_and(Value::is_string) && !t.get("blocked").is_some_and(config::truthy)
+        });
+        let close_label = match (tab, closable) {
+            (None, _) => "Close",
+            (Some(_), false) => "Close Window",
+            (Some(_), true) => "Close Tab",
+        };
+        menus.set_label("win.close", close_label);
         let report =
             state.get("reportBugLabel").and_then(Value::as_str).filter(|l| !l.is_empty()).unwrap_or("Report Bug…");
-        self.menus().set_label("win.report-bug", report);
+        menus.set_label("win.report-bug", report);
+        let set_enabled = |action: Option<gio::Action>, enabled: bool| {
+            if let Some(action) = action.and_then(|a| a.downcast::<gio::SimpleAction>().ok()) {
+                action.set_enabled(enabled);
+            }
+        };
+        set_enabled(self.adw.lookup_action("zoom-reset"), self.zoom() != 1.0);
         if let Some(window) = active {
             for (name, enabled) in [
-                ("reload-portal", true),
-                ("print", true),
+                ("close", !closable || tab_focused),
+                ("close-window", closable),
+                ("reload-portal", flag("portalReloadAvailable")),
+                ("print", flag("printAvailable")),
                 ("back", window.webview.can_go_back()),
                 ("forward", window.webview.can_go_forward()),
             ] {
-                if let Some(action) =
-                    window.window.lookup_action(name).and_then(|a| a.downcast::<gio::SimpleAction>().ok())
-                {
-                    action.set_enabled(enabled);
-                }
+                set_enabled(window.window.lookup_action(name), enabled);
             }
         }
+    }
+
+    /// Lists the windows in the Window menu.
+    pub fn refresh_window_list(&self) {
+        let titles: Vec<String> = self
+            .open_windows()
+            .iter()
+            .map(|w| w.window.title().map(|t| t.to_string()).filter(|t| !t.is_empty()).unwrap_or(APP_NAME.into()))
+            .collect();
+        self.menus().set_windows(&titles);
+    }
+
+    /// The windows still open, in the order the Window menu lists them.
+    fn open_windows(&self) -> Vec<Rc<AmpWindow>> {
+        self.windows.borrow().iter().filter(|w| w.window.application().is_some()).cloned().collect()
     }
 
     // ---- actions ---------------------------------------------------------------------------
@@ -506,10 +539,19 @@ impl App {
         self.add_action("zoom-out", |app| app.set_zoom(config::step_zoom(app.zoom(), -1)));
         self.add_action("zoom-reset", |app| app.set_zoom(1.0));
         self.add_action("bring-all", |app| {
-            for window in app.windows() {
+            for window in app.open_windows() {
                 window.window.present();
             }
         });
+        let present = gio::SimpleAction::new("present-window", Some(glib::VariantTy::UINT32));
+        let weak = Rc::downgrade(self);
+        present.connect_activate(move |_, parameter| {
+            let (Some(app), Some(index)) = (weak.upgrade(), parameter.and_then(|p| p.get::<u32>())) else { return };
+            if let Some(window) = app.open_windows().get(index as usize) {
+                window.window.present();
+            }
+        });
+        self.adw.add_action(&present);
         self.add_action("docs", |app| app.launch_uri("https://ampcode.com/manual"));
 
         let warn = gio::SimpleAction::new_stateful(
@@ -623,6 +665,7 @@ impl App {
         for window in self.windows() {
             window.set_zoom(factor);
         }
+        self.update_actions();
     }
 
     pub fn set_appearance(&self, value: &str) {
