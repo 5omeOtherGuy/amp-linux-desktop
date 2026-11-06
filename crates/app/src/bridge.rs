@@ -17,6 +17,7 @@ use webkit::prelude::*;
 
 use crate::app::App;
 use crate::confirmation::ConfirmationSheet;
+use crate::file_drag;
 use crate::files;
 use crate::local_projects;
 use crate::menus::Menus;
@@ -59,6 +60,7 @@ const REPLY_HANDLERS: &[&str] = &[
     "ampNativePasteboardImages",
     "ampNativeImportLocalProjects",
     "ampNativePrint",
+    "ampNativeFileDrag",
 ];
 
 /// The answer to a message the page awaits. Dropping it unanswered rejects it, so the page
@@ -325,6 +327,7 @@ fn on_reply(window: &Rc<AmpWindow>, name: &str, body: &Value, reply: Reply) {
         }
         "ampNativeImportLocalProjects" => import_local_projects(&app, window, body, reply),
         "ampNativePrint" => print_html(&app, window, body, reply),
+        "ampNativeFileDrag" => file_drag::handle(window, body, reply),
         _ => reply.send(Err(format!("unknown handler {name}"))),
     }
 }

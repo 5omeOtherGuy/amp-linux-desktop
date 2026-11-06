@@ -5,6 +5,7 @@ mod app;
 mod bridge;
 mod choose_projects;
 mod confirmation;
+mod file_drag;
 mod files;
 mod local_projects;
 mod menus;

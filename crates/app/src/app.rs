@@ -13,6 +13,7 @@ use gtk::{gdk, gio, glib};
 use serde_json::{Value, json};
 use webkit::prelude::*;
 
+use crate::file_drag;
 use crate::files;
 use crate::menus::{GLOBAL_COMMANDS, GlobalCommand, Menus};
 use crate::runner::Runner;
@@ -120,6 +121,7 @@ impl App {
         for dir in [&PATHS.data_dir, &PATHS.cache_dir, &PATHS.config_dir] {
             let _ = std::fs::create_dir_all(dir);
         }
+        file_drag::remove_all();
         let web_data = PATHS.data_dir.join("web");
         let session = webkit::NetworkSession::new(
             Some(&web_data.to_string_lossy()),
@@ -192,6 +194,7 @@ impl App {
         }
         self.runner.stop();
         self.runner.cancel_sign_in();
+        file_drag::remove_all();
     }
 
     fn handle_local_options(self: &Rc<Self>, options: &glib::VariantDict) -> std::ops::ControlFlow<glib::ExitCode> {
