@@ -44,9 +44,10 @@ A release needs the owner's go-ahead. The version is in `amp_native/config.py` (
 2. Copy `packaging/arch` to a scratch directory, point its `source` at the local commit, run
    `makepkg -f`, and check the PKGBUILD and the package with `namcap`.
 3. Tag the release commit `vX.Y.Z` and push the tag. The PKGBUILD and the spec file build that
-   tag. The `release` workflow builds the `.deb` and attaches it to the GitHub release. The push
-   also reaches COPR project `5omeotherguy/amp-linux-desktop` through its GitHub webhook, which
-   builds the `.rpm` from `.copr/Makefile` for Fedora 43 to rawhide. `copr-cli` uses
+   tag. The `release` workflow builds the `.deb` and attaches it to the GitHub release. The new
+   tag also reaches COPR project `5omeotherguy/amp-linux-desktop` through its GitHub webhook,
+   which builds the `.rpm` from `.copr/Makefile` for Fedora 43 to rawhide. The webhook sends only
+   `create` events, so pushes to branches build nothing and every pushed tag builds. `copr-cli` uses
    `~/.config/copr` (vault entry `copr-api-token`); the Fedora account is `fedora-account`.
 4. Push `PKGBUILD`, `.SRCINFO`, and `amp-linux-desktop.sh` to the AUR repository
    `ssh://aur@aur.archlinux.org/amp-linux-desktop.git`, and create the GitHub release with the
