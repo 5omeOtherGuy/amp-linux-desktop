@@ -1,6 +1,6 @@
 pkgbase = amp-linux-desktop
 	pkgdesc = Native GTK 4 desktop app for Amp, the coding agent at ampcode.com
-	pkgver = 0.1.0
+	pkgver = 0.1.1
 	pkgrel = 1
 	url = https://github.com/5omeOtherGuy/amp-linux-desktop
 	arch = any
@@ -22,7 +22,7 @@ pkgbase = amp-linux-desktop
 	optdepends = python-livekit: Huddles
 	optdepends = ampcode: the Amp CLI for running threads on this computer (Amp installs it otherwise)
 	noextract = Amp-1.0-1125.dmg
-	source = git+https://github.com/5omeOtherGuy/amp-linux-desktop.git#tag=v0.1.0
+	source = git+https://github.com/5omeOtherGuy/amp-linux-desktop.git#tag=v0.1.1
 	source = Amp-1.0-1125.dmg::https://static.ampcode.com/mac/Amp-1.0-1125.dmg
 	source = amp-linux-desktop.sh
 	sha256sums = SKIP

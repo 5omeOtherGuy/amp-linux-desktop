@@ -109,6 +109,38 @@ If you installed with `scripts/install` before, delete `~/.local/bin/amp-linux-d
 `~/.local/share/applications/dev.ampnative.Amp.desktop`. Otherwise they take precedence over the
 package.
 
+### Debian and Ubuntu
+
+Debian 13 and Ubuntu 24.04 or later have the WebKitGTK 6.0 the app needs. Download the `.deb` from
+the [latest release](https://github.com/5omeOtherGuy/amp-linux-desktop/releases/latest) and
+install it with its dependencies:
+
+```sh
+sudo apt install ./amp-linux-desktop_*_all.deb
+```
+
+The `.deb` does not update itself; install the next release's `.deb` the same way.
+
+### Fedora
+
+```sh
+sudo dnf copr enable 5omeotherguy/amp-linux-desktop
+sudo dnf install amp-linux-desktop
+```
+
+`dnf upgrade` then keeps the app current.
+
+### Amp's icons, Huddles, and orb video on Debian, Ubuntu, and Fedora
+
+- The `.deb` and the `.rpm` do not contain Amp's icons. On the first start the app downloads Amp's
+  macOS disk image (13 MB) once and extracts them with 7-Zip. Until then, the launcher shows a
+  generic icon.
+- Huddles need the LiveKit Python SDK, which these distributions do not package. Install it for
+  your user with `pip install --user --break-system-packages livekit`.
+- The video in an orb thread's Desktop and Mac tabs needs an H.264 decoder: `gstreamer1.0-libav`
+  on Debian and Ubuntu (recommended by the `.deb`), `gstreamer1-plugin-openh264` on Fedora
+  (recommended by the `.rpm`).
+
 ### Any distribution, from a checkout
 
 `scripts/install` installs the app for your user from a checkout. It needs Python 3 with PyGObject,
@@ -141,10 +173,12 @@ bind = SUPER, slash, exec, amp-linux-desktop --action toggle-puck
 
 `python3 -m amp_native` runs the app from a checkout. With `AMP_NATIVE_DEBUG=1`, the app logs every
 bridge message to `~/.cache/amp-native/amp-native.log`. The scripts in `dev/` run only inside an
-Amp orb's Desktop. `packaging/arch` holds the AUR package. [`CHANGELOG.md`](CHANGELOG.md) lists the
+Amp orb's Desktop. `packaging/arch` holds the AUR package, `packaging/debian/build-deb` builds the
+`.deb`, and `packaging/fedora` holds the COPR spec file. [`CHANGELOG.md`](CHANGELOG.md) lists the
 changes in each release.
 
 ## License
 
 MIT, see [LICENSE](LICENSE). Amp, its name and its icons belong to Amp; the repository carries none
-of Amp's artwork, and the package extracts the icons from Amp's own macOS disk image when it builds.
+of Amp's artwork. The Arch package extracts the icons from Amp's own macOS disk image when it builds;
+the other packages fetch them on first start.

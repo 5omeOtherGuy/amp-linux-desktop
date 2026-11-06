@@ -1,0 +1,44 @@
+name: release
+
+# Builds the .deb for a pushed tag vX.Y.Z and attaches it to that tag's GitHub release, creating the
+# release with the version's CHANGELOG.md section when it does not exist yet. COPR builds the .rpm
+# from the same tag on its own (webhook).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build, e.g. v0.1.1"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  deb:
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - run: apt-get update -qq && apt-get install -y -qq git lintian gh
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Build and check
+        run: |
+          packaging/debian/build-deb dist
+          lintian --fail-on error --suppress-tags no-manual-page,initial-upload-closes-no-bugs dist/*.deb
+      - name: Install it with its dependencies
+        run: apt-get install -y -qq ./dist/*.deb && python3 -c 'import amp_native.app'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          git config --global --add safe.directory "$PWD"
+          version=${TAG#v}
+          awk -v v="$version" '$0 ~ "^## "v" " {f=1; next} /^## / {f=0} f' CHANGELOG.md >notes.md
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$version" --notes-file notes.md --verify-tag
+          gh release upload "$TAG" dist/*.deb --clobber

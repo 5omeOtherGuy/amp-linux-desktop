@@ -1,7 +1,7 @@
 # Maintainer: Simon Gies <simon dot gies at pm dot me>
 
 pkgname=amp-linux-desktop
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 # Amp's macOS disk image, which the app icons are extracted from at build time. They are Amp's
 # artwork, so the repository does not carry them. Any build listed in

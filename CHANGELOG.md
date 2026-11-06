@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.1 - 2026-11-06
+
+### Added
+
+- A `.deb` for Debian 13 and Ubuntu 24.04 or later, attached to each GitHub release.
+- An `.rpm` for Fedora through the COPR repository `5omeotherguy/amp-linux-desktop`.
+- Amp's app icons are fetched from Amp's macOS disk image on first start when the package did not
+  install them, as with the `.deb` and `.rpm`.
+
 ## 0.1.0 - 2026-11-06
 
 The first release. [README.md](README.md) compares each feature with Amp's macOS app.

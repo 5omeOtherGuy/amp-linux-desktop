@@ -36,13 +36,18 @@ orbs do not have that file.
 ## Release
 
 A release needs the owner's go-ahead. The version is in `amp_native/config.py` (`VERSION`),
-`packaging/arch/PKGBUILD` (`pkgver`), and the `CHANGELOG.md` heading. Keep the three equal.
+`packaging/arch/PKGBUILD` (`pkgver`), `packaging/fedora/amp-linux-desktop.spec` (`Version`, plus a
+`%changelog` entry), and the `CHANGELOG.md` heading. Keep the four equal.
 
 1. Set the version, reset `pkgrel=1`, and run `makepkg --printsrcinfo > .SRCINFO` in
    `packaging/arch`.
 2. Copy `packaging/arch` to a scratch directory, point its `source` at the local commit, run
    `makepkg -f`, and check the PKGBUILD and the package with `namcap`.
-3. Tag the release commit `vX.Y.Z` and push the tag. The PKGBUILD builds that tag.
+3. Tag the release commit `vX.Y.Z` and push the tag. The PKGBUILD and the spec file build that
+   tag. The `release` workflow builds the `.deb` and attaches it to the GitHub release. The push
+   also reaches COPR project `5omeotherguy/amp-linux-desktop` through its GitHub webhook, which
+   builds the `.rpm` from `.copr/Makefile` for Fedora 43 to rawhide. `copr-cli` uses
+   `~/.config/copr` (vault entry `copr-api-token`); the Fedora account is `fedora-account`.
 4. Push `PKGBUILD`, `.SRCINFO`, and `amp-linux-desktop.sh` to the AUR repository
    `ssh://aur@aur.archlinux.org/amp-linux-desktop.git`, and create the GitHub release with the
    version's `CHANGELOG.md` section as its notes.

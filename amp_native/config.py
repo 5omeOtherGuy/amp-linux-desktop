@@ -7,7 +7,7 @@ from pathlib import Path
 
 APP_ID = "dev.ampnative.Amp"
 APP_NAME = "Amp"
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 # The web app reads these from the user agent. AmpApp names the Linux bundle the server already
 # knows (its sign-in callback scheme is registered for it); the build number is that of the
