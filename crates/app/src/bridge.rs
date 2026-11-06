@@ -41,6 +41,7 @@ const HANDLERS: &[&str] = &[
     "ampNativeToast",
     "ampNativeOpenPuckWindow",
     "ampNativeTogglePuckWindow",
+    "ampNativeAuthenticate",
 ];
 
 /// Handlers whose answer the page awaits.
@@ -133,6 +134,12 @@ pub fn register_handlers(app: &Rc<App>, window: &Rc<AmpWindow>, manager: &webkit
 fn on_message(window: &Rc<AmpWindow>, name: &str, body: &Value) {
     let Some(app) = window.app.upgrade() else { return };
     match name {
+        // Adding, switching, or re-authenticating an account: the server hands the page an
+        // operation to finish in a browser sign-in, as the Mac's NativeAuthenticationMessageHandler.
+        "ampNativeAuthenticate" => {
+            let operation = body.get("operation").and_then(Value::as_str).filter(|o| !o.is_empty());
+            app.sign_in.start(&app, window, operation);
+        }
         "ampNativeWindowDrag" => {
             if body == "doubleClick" {
                 window.toggle_maximized();

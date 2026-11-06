@@ -465,7 +465,7 @@ impl AmpWindow {
         }
         if signin::is_sign_in_page(&uri) {
             decision.ignore();
-            app.sign_in.start(&app, self);
+            app.sign_in.start(&app, self, None);
             return true;
         }
         if uri.starts_with("about:") || uri.starts_with("data:") || uri.starts_with("blob:") || is_app_url(&uri) {

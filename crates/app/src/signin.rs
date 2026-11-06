@@ -60,7 +60,9 @@ pub struct SignIn {
 }
 
 impl SignIn {
-    pub fn start(&self, app: &App, window: &Rc<AmpWindow>) {
+    /// Opens the sign-in in the browser. `operation` is the account operation the page asks to
+    /// finish there (ampNativeAuthenticate), such as adding another account.
+    pub fn start(&self, app: &App, window: &Rc<AmpWindow>, operation: Option<&str>) {
         let verifier = random_token();
         let state = random_token();
         let challenge = b64(&glib::Checksum::new(glib::ChecksumType::Sha256)
@@ -75,11 +77,12 @@ impl SignIn {
             let excess = pending.len().saturating_sub(MAX_PENDING_RELAYS);
             pending.drain(..excess);
         }
-        let query: String = url::form_urlencoded::Serializer::new(String::new())
-            .append_pair("challenge", &challenge)
-            .append_pair("state", &state)
-            .append_pair("scheme", SIGN_IN_SCHEME)
-            .finish();
+        let mut query = url::form_urlencoded::Serializer::new(String::new());
+        query.append_pair("challenge", &challenge).append_pair("state", &state).append_pair("scheme", SIGN_IN_SCHEME);
+        if let Some(operation) = operation {
+            query.append_pair("operation", operation);
+        }
+        let query = query.finish();
         app.launch_uri(&format!("{}/auth/app/authorize?{query}", *APP_URL));
     }
 
