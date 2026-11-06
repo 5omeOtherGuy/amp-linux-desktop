@@ -12,7 +12,7 @@ type Entry = Option<(&'static str, &'static str, Option<&'static str>)>;
 /// Where the Window menu lists the open windows, as the Mac's Window menu does.
 const WINDOW_LIST: &str = "app.present-window";
 
-pub const MENUS: &[(&str, &[Entry])] = &[
+const MENUS: &[(&str, &[Entry])] = &[
     (
         "File",
         &[
@@ -109,7 +109,25 @@ pub const GLOBAL_COMMANDS: &[(&str, Option<&str>)] = &[
     ("dictate-new-thread", Some("dictateNewThread")),
     ("toggle-puck", Some("togglePuck")),
     ("puck-voice", Some("togglePuckRealtimeVoice")),
+    ("dictate-to-puck", Some("openPuckWithDictation")),
 ];
+
+/// The Mac's global hotkeys (Settings, Keyboard Shortcuts) as the desktop-wide actions a compositor
+/// binds: title, action, suggested binding. The Mac's Open Amp Menu (⌃⌥A) becomes Show Amp, since
+/// a tray menu cannot be opened from outside; the bindings are the Mac's with Ctrl for ⌃.
+pub const GLOBAL_SHORTCUTS: &[(&str, &str, Option<&str>)] = &[
+    ("Show Amp", "show", Some("<Control><Alt>a")),
+    ("New Thread", "new-thread", Some("<Control><Alt>n")),
+    ("Open Puck", "toggle-puck", Some("<Control><Alt>p")),
+    ("Call Puck", "puck-voice", Some("<Control><Alt><Shift>p")),
+    ("Dictate New Thread", "dictate-new-thread", None),
+    ("Dictate to Puck", "dictate-to-puck", None),
+];
+
+/// A binding as GTK shows it, such as Ctrl+Alt+N.
+pub fn accel_label(accel: &str) -> Option<String> {
+    gtk::accelerator_parse(accel).map(|(key, mods)| gtk::accelerator_get_label(key, mods).to_string())
+}
 
 struct Label {
     section: gio::Menu,
@@ -242,19 +260,13 @@ impl Menus {
         None
     }
 
-    /// The shortcuts the page lists in its keyboard shortcut settings.
+    /// The desktop-wide shortcuts, which the page lists under "From any app" in its Keymap, as the
+    /// Mac sends its global hotkeys.
     pub fn shortcut_list() -> Vec<serde_json::Value> {
-        let mut shortcuts = Vec::new();
-        for (_, entries) in MENUS {
-            for (title, _, accel) in entries.iter().flatten() {
-                if let Some(accel) = accel {
-                    let label =
-                        gtk::accelerator_parse(*accel).map(|(k, m)| gtk::accelerator_get_label(k, m).to_string());
-                    shortcuts.push(serde_json::json!({"title": title, "shortcut": label}));
-                }
-            }
-        }
-        shortcuts
+        GLOBAL_SHORTCUTS
+            .iter()
+            .map(|(title, _, accel)| serde_json::json!({"title": title, "shortcut": accel.and_then(accel_label)}))
+            .collect()
     }
 }
 

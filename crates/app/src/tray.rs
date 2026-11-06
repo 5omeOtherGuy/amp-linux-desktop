@@ -89,7 +89,12 @@ pub struct Tray {
     /// Menu items by ID (1-based), with what a click on them does.
     items: RefCell<Vec<(Props, Option<Action>)>>,
     connection: RefCell<Option<gio::DBusConnection>>,
-    registered: Cell<bool>,
+    /// The bus name while the icon shows; hosts drop the item when it is released.
+    owner: RefCell<Option<gio::OwnerId>>,
+}
+
+fn service_name() -> String {
+    format!("org.kde.StatusNotifierItem-{}-1", std::process::id())
 }
 
 fn interface(xml: &str) -> gio::DBusInterfaceInfo {
@@ -101,7 +106,6 @@ impl Tray {
     pub fn start(&self, app: &Rc<App>) {
         self.revision.set(1);
         let Some(connection) = app.adw.dbus_connection() else { return };
-        let service = format!("org.kde.StatusNotifierItem-{}-1", std::process::id());
         let weak = Rc::downgrade(app);
         let item = connection
             .register_object(ITEM_PATH, &interface(SNI_XML))
@@ -144,41 +148,67 @@ impl Tray {
             log::info!("status icon not exported: {error}");
             return;
         }
-        gio::bus_own_name_on_connection(&connection, &service, gio::BusNameOwnerFlags::NONE, |_, _| {}, |_, _| {});
         let weak_appeared = weak.clone();
         gio::bus_watch_name_on_connection(
             &connection,
             WATCHER,
             gio::BusNameWatcherFlags::NONE,
-            move |connection, _, _| {
-                let weak = weak_appeared.clone();
-                connection.call(
-                    Some(WATCHER),
-                    "/StatusNotifierWatcher",
-                    WATCHER,
-                    "RegisterStatusNotifierItem",
-                    Some(&(service.as_str(),).to_variant()),
-                    None,
-                    gio::DBusCallFlags::NONE,
-                    -1,
-                    gio::Cancellable::NONE,
-                    move |result| match result {
-                        Ok(_) => {
-                            if let Some(app) = weak.upgrade() {
-                                app.tray.registered.set(true);
-                            }
-                        }
-                        Err(error) => log::info!("status icon not registered: {}", error.message()),
-                    },
-                );
+            move |_, _, _| {
+                if let Some(app) = weak_appeared.upgrade() {
+                    app.tray.register();
+                }
             },
-            move |_, _| {
-                if let Some(app) = weak.upgrade() {
-                    app.tray.registered.set(false);
+            |_, _| {},
+        );
+        *self.connection.borrow_mut() = Some(connection);
+        self.set_visible(app.settings.bool("show_in_tray"));
+    }
+
+    /// Shows or hides the icon (Show Amp in Tray), as the Mac adds or removes its status item.
+    pub fn set_visible(&self, visible: bool) {
+        let Some(connection) = self.connection.borrow().clone() else { return };
+        if visible == self.owner.borrow().is_some() {
+            return;
+        }
+        if visible {
+            let owner = gio::bus_own_name_on_connection(
+                &connection,
+                &service_name(),
+                gio::BusNameOwnerFlags::NONE,
+                |_, _| {},
+                |_, _| {},
+            );
+            *self.owner.borrow_mut() = Some(owner);
+            self.register();
+        } else {
+            if let Some(owner) = self.owner.borrow_mut().take() {
+                gio::bus_unown_name(owner);
+            }
+        }
+    }
+
+    /// Asks the StatusNotifierWatcher, if there is one, to show the icon.
+    fn register(&self) {
+        let Some(connection) = self.connection.borrow().clone() else { return };
+        if self.owner.borrow().is_none() {
+            return;
+        }
+        connection.call(
+            Some(WATCHER),
+            "/StatusNotifierWatcher",
+            WATCHER,
+            "RegisterStatusNotifierItem",
+            Some(&(service_name(),).to_variant()),
+            None,
+            gio::DBusCallFlags::NONE,
+            -1,
+            gio::Cancellable::NONE,
+            |result| {
+                if let Err(error) = result {
+                    log::info!("status icon not registered: {}", error.message());
                 }
             },
         );
-        *self.connection.borrow_mut() = Some(connection);
     }
 
     // ---- state from the page ---------------------------------------------------------------

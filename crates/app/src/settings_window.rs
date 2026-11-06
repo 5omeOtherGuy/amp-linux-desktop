@@ -10,6 +10,7 @@ use gtk::{gdk, glib};
 use serde_json::{Value, json};
 
 use crate::app::App;
+use crate::menus::{GLOBAL_SHORTCUTS, accel_label};
 use crate::runner::{Runner, find_cli};
 
 const TABS: [(&str, &str, &str); 6] = [
@@ -184,6 +185,15 @@ impl SettingsWindow {
             }
         };
         g.add(&switch_row(
+            "Show Amp in Tray",
+            Some("Recent threads, New Thread, and Puck from the tray of any desktop that has one."),
+            s.bool("show_in_tray"),
+            with_app(|app, v| {
+                app.settings.set("show_in_tray", json!(v));
+                app.tray.set_visible(v);
+            }),
+        ));
+        g.add(&switch_row(
             "Show Unread Count in Launcher",
             Some("The number of unread threads on Amp’s launcher icon."),
             s.bool("show_unread_count"),
@@ -271,6 +281,7 @@ impl SettingsWindow {
             g2.add(&card);
             groups.push(g2);
         }
+        groups.push(shortcuts_group());
         groups
     }
 
@@ -799,6 +810,37 @@ impl SettingsWindow {
         card.append(&buttons);
         vec![wrap(&card)]
     }
+}
+
+/// The Mac's Keyboard Shortcuts section. Wayland leaves global shortcuts to the compositor, so each
+/// row names the command to bind and the Mac's key with Ctrl for ⌃.
+fn shortcuts_group() -> adw::PreferencesGroup {
+    let g = group(
+        Some("Keyboard Shortcuts"),
+        Some(
+            "Bind these commands in your desktop’s keyboard settings to use them from any app. \
+             In Hyprland: bind = CTRL ALT, N, exec, amp-linux-desktop --action new-thread",
+        ),
+    );
+    for (title, action, accel) in GLOBAL_SHORTCUTS {
+        let command = format!("amp-linux-desktop --action {action}");
+        let row = adw::ActionRow::builder().title(*title).subtitle(&command).build();
+        let key = gtk::Label::builder()
+            .label(accel.and_then(accel_label).unwrap_or_else(|| "Off".into()))
+            .valign(gtk::Align::Center)
+            .build();
+        key.add_css_class(if accel.is_some() { "amp-shortcut-key" } else { "dim-label" });
+        row.add_suffix(&key);
+        let copy = gtk::Button::builder().icon_name("edit-copy-symbolic").valign(gtk::Align::Center).build();
+        copy.add_css_class("flat");
+        copy.set_tooltip_text(Some("Copy Command"));
+        copy.connect_clicked(move |button| {
+            button.clipboard().set_text(&command);
+        });
+        row.add_suffix(&copy);
+        g.add(&row);
+    }
+    g
 }
 
 fn switch_row_with_prefix(

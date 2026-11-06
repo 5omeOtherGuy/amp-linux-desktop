@@ -116,6 +116,7 @@ fn defaults() -> Map<String, Value> {
     let host = glib::host_name();
     let runner_name = format!("{}-amp-app", host.split('.').next().unwrap_or("").to_lowercase());
     let Value::Object(map) = json!({
+        "show_in_tray": true,
         "show_unread_count": true,
         "warn_before_quitting": false,
         "open_at_login": false,
