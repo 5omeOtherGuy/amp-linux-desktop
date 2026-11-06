@@ -47,6 +47,8 @@ const MENUS: &[(&str, &[Entry])] = &[
         &[
             Some(("Show Sidebar", "win.toggle-sidebar", Some("<Control>b"))),
             Some(("Show Puck", "win.toggle-puck", Some("<Control>slash"))),
+            // The Mac's global ⌃⌥P; `--action puck-window` binds it desktop-wide.
+            Some(("Puck Window", "app.puck-window", Some("<Control><Alt>p"))),
             None,
             Some(("Back", "win.back", Some("<Alt>Left"))),
             Some(("Forward", "win.forward", Some("<Alt>Right"))),
@@ -101,15 +103,26 @@ const EXTRA_ACCELS: &[(&str, &[&str])] = &[
 /// Left to the web view, which already does them; the menu only names them.
 const WEB_HANDLED: &[&str] = &["win.undo", "win.redo", "win.cut", "win.copy", "win.paste", "win.select-all"];
 
-/// App actions run from outside the window, mapped to the page's app commands (None only shows
-/// Amp).
-pub const GLOBAL_COMMANDS: &[(&str, Option<&str>)] = &[
-    ("show", None),
-    ("new-thread", Some("createThread")),
-    ("dictate-new-thread", Some("dictateNewThread")),
-    ("toggle-puck", Some("togglePuck")),
-    ("puck-voice", Some("togglePuckRealtimeVoice")),
-    ("dictate-to-puck", Some("openPuckWithDictation")),
+/// What an app action run from outside the window does.
+#[derive(Clone, Copy)]
+pub enum GlobalCommand {
+    /// Shows Amp.
+    Show,
+    /// Shows Amp and runs this app command in the page.
+    Page(&'static str),
+    /// Opens Puck in its own window, or closes it when it has focus.
+    PuckWindow,
+}
+
+/// App actions run from outside the window.
+pub const GLOBAL_COMMANDS: &[(&str, GlobalCommand)] = &[
+    ("show", GlobalCommand::Show),
+    ("new-thread", GlobalCommand::Page("createThread")),
+    ("dictate-new-thread", GlobalCommand::Page("dictateNewThread")),
+    ("toggle-puck", GlobalCommand::Page("togglePuck")),
+    ("puck-voice", GlobalCommand::Page("togglePuckRealtimeVoice")),
+    ("puck-window", GlobalCommand::PuckWindow),
+    ("dictate-to-puck", GlobalCommand::Page("openPuckWithDictation")),
 ];
 
 /// The Mac's global hotkeys (Settings, Keyboard Shortcuts) as the desktop-wide actions a compositor
@@ -118,7 +131,7 @@ pub const GLOBAL_COMMANDS: &[(&str, Option<&str>)] = &[
 pub const GLOBAL_SHORTCUTS: &[(&str, &str, Option<&str>)] = &[
     ("Show Amp", "show", Some("<Control><Alt>a")),
     ("New Thread", "new-thread", Some("<Control><Alt>n")),
-    ("Open Puck", "toggle-puck", Some("<Control><Alt>p")),
+    ("Open Puck", "puck-window", Some("<Control><Alt>p")),
     ("Call Puck", "puck-voice", Some("<Control><Alt><Shift>p")),
     ("Dictate New Thread", "dictate-new-thread", None),
     ("Dictate to Puck", "dictate-to-puck", None),

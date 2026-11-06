@@ -84,7 +84,8 @@ impl AmpWindow {
         let dimension =
             |key: &str, default: i32| geometry.get(key).and_then(Value::as_i64).map_or(default, |v| v as i32);
         if auxiliary == Some("puck") {
-            window.set_default_size(480, 720);
+            // The Mac's Puck window.
+            window.set_default_size(520, 697);
         } else {
             window.set_default_size(dimension("width", 1280), dimension("height", 800));
         }
@@ -314,6 +315,7 @@ impl AmpWindow {
             scripts::auxiliary_window(self.auxiliary),
             scripts::window_metrics(0, 0, false, app.zoom()),
             scripts::notification_permission(&app.settings.str("notifications")),
+            scripts::puck_opening(&app.settings.str("puck_opening")),
             scripts::APP_STATE.to_string(),
             scripts::NAVIGATION_STATE.to_string(),
             scripts::EXTERNAL_WINDOW_OPEN.to_string(),

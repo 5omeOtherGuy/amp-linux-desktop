@@ -14,7 +14,7 @@ use serde_json::{Value, json};
 use webkit::prelude::*;
 
 use crate::files;
-use crate::menus::{GLOBAL_COMMANDS, Menus};
+use crate::menus::{GLOBAL_COMMANDS, GlobalCommand, Menus};
 use crate::runner::Runner;
 use crate::settings_window::SettingsWindow;
 use crate::signin::SignIn;
@@ -35,7 +35,7 @@ pub struct App {
     pub tray: Tray,
     menus: OnceCell<Menus>,
     /// A global command for a window that is still loading; it runs once the page is ready.
-    pending_command: Cell<Option<&'static str>>,
+    pending_command: Cell<Option<GlobalCommand>>,
     #[cfg(feature = "huddles")]
     huddles: RefCell<std::collections::HashMap<String, amp_huddle::HuddleWindow>>,
     pub user_agent_suffix: String,
@@ -203,7 +203,7 @@ impl App {
             self.adw.activate_action(name, None);
             return std::ops::ControlFlow::Break(glib::ExitCode::SUCCESS);
         }
-        self.pending_command.set(*command);
+        self.pending_command.set(Some(*command));
         std::ops::ControlFlow::Continue(())
     }
 
@@ -227,7 +227,7 @@ impl App {
     }
 
     pub fn main_window(&self) -> Option<Rc<AmpWindow>> {
-        self.windows.borrow().iter().find(|w| w.window.application().is_some()).cloned()
+        self.windows.borrow().iter().find(|w| w.auxiliary.is_none() && w.window.application().is_some()).cloned()
     }
 
     pub fn present_main(self: &Rc<Self>) {
@@ -350,22 +350,30 @@ impl App {
             if state.get("websiteReady").is_some_and(config::truthy)
                 && let Some(command) = self.pending_command.take()
             {
-                window.app_command(command, json!({}), None);
+                self.run_command(window, command);
             }
         }
         self.update_actions();
     }
 
-    pub fn run_global_command(self: &Rc<Self>, command: Option<&'static str>) {
+    pub fn run_global_command(self: &Rc<Self>, command: GlobalCommand) {
         let Some(window) = self.main_window() else {
             // A new window takes the command once the page reports it is ready.
-            self.pending_command.set(command);
+            self.pending_command.set(Some(command));
             self.present_main();
             return;
         };
-        window.window.present();
-        if let Some(command) = command {
-            window.app_command(command, json!({}), None);
+        if !matches!(command, GlobalCommand::PuckWindow) {
+            window.window.present();
+        }
+        self.run_command(&window, command);
+    }
+
+    fn run_command(self: &Rc<Self>, main: &Rc<AmpWindow>, command: GlobalCommand) {
+        match command {
+            GlobalCommand::Show => {}
+            GlobalCommand::Page(command) => main.app_command(command, json!({}), None),
+            GlobalCommand::PuckWindow => crate::bridge::toggle_puck_window(self, None),
         }
     }
 
