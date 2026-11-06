@@ -136,3 +136,8 @@ bind = SUPER, slash, exec, amp-linux-desktop --action toggle-puck
 bridge message to `~/.cache/amp-native/amp-native.log`. The scripts in `dev/` run only inside an
 Amp orb's Desktop. `packaging/arch` holds the AUR package. [`CHANGELOG.md`](CHANGELOG.md) lists the
 changes in each release.
+
+## License
+
+MIT, see [LICENSE](LICENSE). Amp, its name and its icons belong to Amp; the repository carries none
+of Amp's artwork, and the package extracts the icons from Amp's own macOS disk image when it builds.
