@@ -908,6 +908,20 @@ impl App {
         }
     }
 
+    /// Lets threads run in these folders: adds them to the runner's directories and, while it
+    /// runs, serves them at once.
+    pub fn add_runner_dirs(self: &Rc<Self>, paths: &[String]) {
+        let mut dirs = self.settings.strings("runner_dirs");
+        let new: Vec<String> = paths.iter().filter(|p| !dirs.contains(p)).cloned().collect();
+        if new.is_empty() {
+            return;
+        }
+        dirs.extend(new.iter().cloned());
+        self.settings.set("runner_dirs", json!(dirs));
+        self.runner.dirs_command(self, "add", &new);
+        self.refresh_settings_runner();
+    }
+
     pub fn runner_changed(self: &Rc<Self>) {
         let runner_id = self.runner.running().then(|| Runner::runner_id(&self.settings));
         for window in self.windows() {

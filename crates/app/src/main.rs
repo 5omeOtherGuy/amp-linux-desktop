@@ -3,6 +3,7 @@
 
 mod app;
 mod bridge;
+mod choose_projects;
 mod confirmation;
 mod files;
 mod local_projects;

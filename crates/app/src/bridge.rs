@@ -458,15 +458,7 @@ fn record_project_folders(app: &Rc<App>, paths: Option<&Value>) -> Value {
     let paths: Option<Vec<String>> =
         paths.iter().map(|p| p.as_str().filter(|p| p.starts_with('/')).map(String::from)).collect();
     let Some(paths) = paths else { return json!({"status": "invalid"}) };
-    let mut dirs = app.settings.strings("runner_dirs");
-    for path in paths {
-        if !dirs.contains(&path) {
-            dirs.push(path.clone());
-            app.runner.dirs_command(app, "add", &[path]);
-        }
-    }
-    app.settings.set("runner_dirs", json!(dirs));
-    app.refresh_settings_runner();
+    app.add_runner_dirs(&paths);
     json!({"status": "ok"})
 }
 

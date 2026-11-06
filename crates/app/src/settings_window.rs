@@ -6,7 +6,7 @@ use std::rc::{Rc, Weak};
 
 use adw::prelude::*;
 use amp_common::config::{self, Settings, truthy};
-use gtk::{gdk, glib};
+use gtk::{gdk, gio, glib};
 use serde_json::{Value, json};
 
 use crate::app::App;
@@ -155,7 +155,7 @@ impl SettingsWindow {
         self.app.upgrade()
     }
 
-    pub fn show_tab(&self, key: &str) {
+    pub fn show_tab(self: &Rc<Self>, key: &str) {
         let page = self.pages.borrow().iter().find(|(k, _)| k == key).map(|(_, p)| p.clone());
         if let Some(page) = page {
             self.window.set_visible_page(&page);
@@ -164,7 +164,7 @@ impl SettingsWindow {
         self.window.present();
     }
 
-    fn page_changed(&self) {
+    fn page_changed(self: &Rc<Self>) {
         let key = self.window.visible_page().and_then(|p| p.name());
         match key.as_deref() {
             Some("account") => self.refresh_account(),
@@ -502,15 +502,38 @@ impl SettingsWindow {
         ));
         self.refresh_runner_paths();
 
-        let add = gtk::Button::builder().icon_name("list-add-symbolic").valign(gtk::Align::Center).build();
-        add.add_css_class("flat");
-        add.set_tooltip_text(Some("Add Directory…"));
+        // The Mac's Local Folders + menu; its Add Parent Folder… and Add Home Folder are the rows
+        // under Where Threads Can Run here.
+        let actions = gio::SimpleActionGroup::new();
+        let choose = gio::SimpleAction::new("choose-projects", None);
         let weak = Rc::downgrade(self);
-        add.connect_clicked(move |_| {
+        choose.connect_activate(move |_, _| {
+            if let Some(this) = weak.upgrade()
+                && let Some(app) = this.settings()
+            {
+                crate::choose_projects::show(&app, &this.window);
+            }
+        });
+        actions.add_action(&choose);
+        let folder = gio::SimpleAction::new("add-folder", None);
+        let weak = Rc::downgrade(self);
+        folder.connect_activate(move |_, _| {
             if let Some(this) = weak.upgrade() {
                 this.add_directory();
             }
         });
+        actions.add_action(&folder);
+        let menu = gio::Menu::new();
+        menu.append(Some("Choose Projects…"), Some("dirs.choose-projects"));
+        menu.append(Some("Add Folder…"), Some("dirs.add-folder"));
+        let add = gtk::MenuButton::builder()
+            .icon_name("list-add-symbolic")
+            .menu_model(&menu)
+            .valign(gtk::Align::Center)
+            .tooltip_text("Add Directories")
+            .build();
+        add.add_css_class("flat");
+        add.insert_action_group("dirs", Some(&actions));
         self.dirs_group.set_header_suffix(Some(&add));
         self.refresh_dirs();
         vec![g, place, self.network_group.clone(), self.dirs_group.clone()]
@@ -527,7 +550,7 @@ impl SettingsWindow {
         }
     }
 
-    pub fn refresh_runner(&self) {
+    pub fn refresh_runner(self: &Rc<Self>) {
         let Some(app) = self.settings() else { return };
         let settings = &app.settings;
         let subtitle = if !settings.bool("runner_enabled") {
@@ -548,6 +571,7 @@ impl SettingsWindow {
         let net = app.main_window().is_some_and(|m| m.app_state.borrow().get("ampNetEnabled").is_some_and(truthy));
         self.network_group.set_visible(net);
         self.refresh_runner_paths();
+        self.refresh_dirs();
         if self.runner_switch.is_active() != settings.bool("runner_enabled") {
             self.runner_switch.set_active(settings.bool("runner_enabled"));
         }
@@ -646,14 +670,7 @@ impl SettingsWindow {
                 && let Some(path) = d.file().and_then(|f| f.path())
                 && let Some(app) = this.settings()
             {
-                let path = path.to_string_lossy().to_string();
-                let mut dirs = app.settings.strings("runner_dirs");
-                if !dirs.contains(&path) {
-                    dirs.push(path.clone());
-                    app.settings.set("runner_dirs", json!(dirs));
-                    app.runner.dirs_command(&app, "add", &[path]);
-                    this.refresh_dirs();
-                }
+                app.add_runner_dirs(&[path.to_string_lossy().to_string()]);
             }
             d.destroy();
         });
