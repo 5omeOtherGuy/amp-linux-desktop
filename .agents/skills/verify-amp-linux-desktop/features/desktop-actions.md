@@ -28,7 +28,7 @@ Preconditions:
 ## Gotchas
 
 - `verify-amp app` must run inside the session (it does, through `agent-desktop exec`); running `amp-linux-desktop --action …` from a plain shell talks to the owner's running app.
-- `dictate-new-thread` and `puck-voice` open the microphone; the headless session has the owner's PipeWire, so do not use them without asking.
+- `dictate-new-thread`, `dictate-to-puck` and `puck-voice` open the microphone; the headless session has the owner's PipeWire, so do not use them without asking. The P720 has no working capture device anyway (SKILL.md, Not coverable).
 - Opening the new-thread composer does not create a thread until a message is sent; do not send.
 - The new-thread overlay can carry a "Set Up Orbs" banner (`Set Up with Amp`, `Docs`, `Dismiss`). Click none of them; `Dismiss` may change the owner's account state.
 - With Puck open, a green call button sits where `New Thread` usually is. Clicking it starts a voice call with the microphone; do not.

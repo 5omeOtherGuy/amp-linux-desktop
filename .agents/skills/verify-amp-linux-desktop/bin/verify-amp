@@ -6,11 +6,13 @@
 #                                     # no ARGS after ctrl+q restarts the app)
 #   verify-amp shot RUN NAME          # screenshot into the evidence dir
 #   verify-amp logs RUN               # print the instance's log paths
+#   verify-amp desk RUN               # start a tray host (waybar) and a notification daemon (mako)
+#   verify-amp labwc RUN              # run the app inside a nested labwc (minimize/maximize work there)
 #   verify-amp cleanup RUN
 set -eu
 
 repo=$(cd "$(dirname "$0")/../../../.." && pwd)
-cmd=${1:?usage: verify-amp launch|doctor|app|shot|logs|cleanup RUN}
+cmd=${1:?usage: verify-amp launch|doctor|app|shot|logs|desk|labwc|cleanup RUN}
 run=${2:?RUN name required}
 shift 2
 session="ampv-$run"
@@ -20,7 +22,22 @@ evidence="$repo/.amp/in/artifacts/verify/$run"
 bin="$repo/target/debug/amp-linux-desktop"
 
 app_env() {
-	echo "XDG_DATA_HOME=$scratch/data XDG_CONFIG_HOME=$scratch/config XDG_CACHE_HOME=$scratch/cache AMP_NATIVE_DEBUG=1"
+	# BROWSER: links the app opens (sign-in, amp login, Release Notes) are logged to browser.log
+	# instead of reaching a browser, which could hand them to the owner's running one.
+	echo "XDG_DATA_HOME=$scratch/data XDG_CONFIG_HOME=$scratch/config XDG_CACHE_HOME=$scratch/cache AMP_NATIVE_DEBUG=1 BROWSER=$scratch/browser"
+}
+
+# mako, waybar and labwc are not installed on the workstations. Their Arch packages and the
+# dependencies the system lacks are extracted once into this cache, not installed.
+tools="${XDG_CACHE_HOME:-$HOME/.cache}/verify-amp/tools"
+fetch_tools() {
+	[ -x "$tools/root/usr/bin/mako" ] && [ -x "$tools/root/usr/bin/waybar" ] && [ -x "$tools/root/usr/bin/labwc" ] && return
+	mkdir -p "$tools/pkg" "$tools/root"
+	for url in $(pacman -Sp mako waybar labwc); do
+		f="$tools/pkg/${url##*/}"
+		[ -f "$f" ] || curl -fsSL -o "$f" "$url" || { echo "verify-amp: download failed: $url" >&2; exit 1; }
+		bsdtar -xf "$f" -C "$tools/root" usr
+	done
 }
 
 case $cmd in
@@ -40,6 +57,8 @@ launch)
 	cargo build -q --manifest-path "$repo/Cargo.toml" || { echo "verify-amp: build failed" >&2; exit 1; }
 	mkdir -p "$scratch/data/amp-native" "$scratch/config/amp-native" "$scratch/cache/amp-native" "$evidence"
 	chmod 700 "$scratch"
+	printf '#!/bin/sh\necho "$(date +%%T) $*" >>"%s/cache/amp-native/browser.log"\n' "$scratch" >"$scratch/browser"
+	chmod +x "$scratch/browser"
 	if [ "$signed_in" = 1 ]; then
 		# A copy of the owner's login and settings; the original is never written.
 		[ -f "$HOME/.local/share/amp-native/web/cookies.sqlite" ] || { echo "verify-amp: no signed-in profile to copy; use --signed-out" >&2; exit 1; }
@@ -107,6 +126,32 @@ logs)
 	# App log, then stderr (GTK/WebKit and panics) of the launch and of each `app` run.
 	echo "$scratch/cache/amp-native/amp-native.log"
 	ls -t "$scratch/cache/amp-native/"stderr*.log 2>/dev/null
+	;;
+desk)
+	# The session's private bus has no StatusNotifierWatcher (the tray icon has nowhere to go) and
+	# no notification daemon. waybar hosts the tray at the bottom of the screen; mako shows
+	# notifications at the top right and keeps them until clicked.
+	fetch_tools
+	conf="$scratch/desk"
+	mkdir -p "$conf"
+	printf 'default-timeout=0\nanchor=top-right\nfont=sans 12\nwidth=360\n' >"$conf/mako"
+	echo '{ "layer": "top", "position": "bottom", "height": 34, "modules-right": ["tray"], "modules-left": [], "tray": { "icon-size": 22, "spacing": 8 } }' >"$conf/waybar.json"
+	echo '* { font-family: sans-serif; font-size: 14px; } window#waybar { background: #222; color: #eee; }' >"$conf/waybar.css"
+	lib="$tools/root/usr/lib"
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/mako.log" -- env LD_LIBRARY_PATH="$lib" "$tools/root/usr/bin/mako" -c "$conf/mako" >/dev/null
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/waybar.log" -- env LD_LIBRARY_PATH="$lib" XDG_CONFIG_DIRS=/etc/xdg "$tools/root/usr/bin/waybar" -c "$conf/waybar.json" -s "$conf/waybar.css" >/dev/null
+	echo "started mako and waybar in $session"
+	;;
+labwc)
+	# sway ignores the app's minimize and maximize requests; labwc, nested as a window of the
+	# session, honours them. The app inside it is not in `agent-desktop windows`, so doctor fails.
+	agent-desktop windows "$session" | grep -q dev.ampnative.Amp && { echo "verify-amp: quit the app first (agent-desktop key $session ctrl+q)" >&2; exit 1; }
+	fetch_tools
+	mkdir -p "$scratch/labwc"
+	echo '<?xml version="1.0"?><labwc_config><core><decoration>server</decoration></core></labwc_config>' >"$scratch/labwc/rc.xml"
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/labwc.log" -- env LD_LIBRARY_PATH="$tools/root/usr/lib" WLR_BACKENDS=wayland WLR_RENDERER=pixman \
+		"$tools/root/usr/bin/labwc" -C "$scratch/labwc" -s "env $(app_env) $bin" >/dev/null
+	echo "started labwc with the app in $session; screenshot in about 15 s"
 	;;
 cleanup)
 	mkdir -p "$evidence"

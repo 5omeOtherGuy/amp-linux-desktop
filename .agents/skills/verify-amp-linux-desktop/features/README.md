@@ -35,3 +35,5 @@ Each feature file has an H1, one paragraph of user-visible behaviour, then exact
 - [Orb Desktop and Terminal tabs](./orb-tabs.md): remote desktop video and terminal of an orb thread.
 - [Theme and text selection](./theme-and-selection.md): Omarchy colours and visible selections.
 - [Notifications](./notifications.md): permission card and desktop notifications.
+- [Tray and window controls](./tray-and-window.md): the tray menu, its runner switches, minimize and maximize.
+- [Runner folders, Import Threads and the runner's CLI](./runner-and-import.md): Choose Projects…, Import Threads…, the not-signed-in runner.
