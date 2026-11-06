@@ -401,6 +401,9 @@ impl Runner {
             self.start(app);
         } else {
             self.stop();
+            // A sign-in left waiting for the browser would otherwise hold the row at "Signing
+            // in…" and hide Sign In… until Amp quits; turning the runner off ends it.
+            self.cancel_sign_in();
             *self.last_error.borrow_mut() = None;
             app.runner_changed();
         }
@@ -714,7 +717,7 @@ impl Runner {
         });
     }
 
-    /// Ends a sign-in still waiting for the browser, as Amp quits.
+    /// Ends a sign-in still waiting for the browser, as Amp quits or the runner is turned off.
     pub fn cancel_sign_in(&self) {
         if let Some(pid) = self.login_pid.take() {
             // SAFETY: kill only signals the login's pid, which has not been reaped yet.
@@ -733,7 +736,7 @@ impl Runner {
                 return;
             }
             *self.last_error.borrow_mut() = None;
-        } else {
+        } else if app.settings.bool("runner_enabled") {
             *self.last_error.borrow_mut() = Some("The Amp CLI did not finish signing in. Try again.".into());
         }
         app.runner_changed();
