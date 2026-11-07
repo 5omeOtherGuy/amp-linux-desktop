@@ -1,12 +1,12 @@
 # Maintainer: Simon Gies <simon dot gies at pm dot me>
 
 pkgname=amp-linux-desktop
-pkgver=0.1.1
+pkgver=0.2.0
 pkgrel=1
 # Amp's macOS disk image, which the app icons are extracted from at build time. They are Amp's
 # artwork, so the repository does not carry them. Any build listed in
 # https://static.ampcode.com/mac/appcast.xml works.
-_ampbuild=1125
+_ampbuild=1180
 # The prebuilt libwebrtc that Huddles link, as LiveKit's webrtc-sys build script would download
 # it: WEBRTC_TAG in the webrtc-sys-build version that Cargo.lock pins.
 _webrtc=webrtc-a545de4
@@ -31,7 +31,7 @@ source=("git+$url.git#tag=v$pkgver"
 	"$_webrtc-linux-x64-release.zip::https://github.com/livekit/rust-sdks/releases/download/$_webrtc/webrtc-linux-x64-release.zip")
 noextract=("Amp-1.0-$_ampbuild.dmg")
 sha256sums=('SKIP'
-	'2a671b2a01cb356f79cc76ba5de6822c9df0182bacea3a302c6566c6f8d16f1f'
+	'908eb07a006f472ff6f1002d1effa608eb689ae1d50b7185c690eaf8925a9018'
 	'2ece73b9a72a2cacd73d0c62ac3a414e202f37885c3c8f49dddb43c1443ac0bd')
 
 prepare() {

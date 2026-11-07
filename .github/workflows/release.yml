@@ -1,8 +1,8 @@
 name: release
 
-# Builds the .deb for a pushed tag vX.Y.Z and attaches it to that tag's GitHub release, creating the
-# release with the version's CHANGELOG.md section when it does not exist yet. COPR builds the .rpm
-# from the same tag on its own (webhook).
+# Builds the .deb for a pushed tag vX.Y.Z and attaches it and its SHA256SUMS to that tag's GitHub
+# release, creating the release as a draft with the version's CHANGELOG.md section when it does not
+# exist yet. COPR builds the .rpm from the same tag on its own (webhook).
 on:
   push:
     tags: ["v*"]
@@ -51,5 +51,8 @@ jobs:
           git config --global --add safe.directory "$PWD"
           version=${TAG#v}
           awk -v v="$version" '$0 ~ "^## "v" " {f=1; next} /^## / {f=0} f' CHANGELOG.md >notes.md
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$version" --notes-file notes.md --verify-tag
-          gh release upload "$TAG" dist/*.deb --clobber
+          # A new release starts as a draft, so that its notes and files are checked before it is
+          # published (gh release edit "$TAG" --draft=false).
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft --title "$version" --notes-file notes.md --verify-tag
+          (cd dist && sha256sum -- *.deb >SHA256SUMS)
+          gh release upload "$TAG" dist/*.deb dist/SHA256SUMS --clobber

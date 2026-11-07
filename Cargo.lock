@@ -19,7 +19,7 @@ dependencies = [
 
 [[package]]
 name = "amp-common"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "gio",
  "glib",
@@ -30,7 +30,7 @@ dependencies = [
 
 [[package]]
 name = "amp-dictation"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "glib",
@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "amp-huddle"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "async-channel",
  "futures-util",
@@ -57,7 +57,7 @@ dependencies = [
 
 [[package]]
 name = "amp-linux-desktop"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "amp-common",
  "amp-dictation",

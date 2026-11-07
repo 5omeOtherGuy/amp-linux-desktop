@@ -82,6 +82,12 @@ build 1125 (`https://static.ampcode.com/mac/Amp-1.0-1125.dmg`, 2026-11-06). The 
 
 ## Install
 
+Packages exist for x86_64 only: Huddles link LiveKit's prebuilt WebRTC library, which LiveKit
+publishes for x86_64. From 0.2.0 on, each
+[release](https://github.com/5omeOtherGuy/amp-linux-desktop/releases) lists its changes and has the
+SHA-256 checksum of its `.deb` in `SHA256SUMS`; check the download with
+`sha256sum --check --ignore-missing SHA256SUMS`.
+
 ### Arch Linux
 
 The package in `packaging/arch` installs the app for all users. It is not on the AUR yet, because
@@ -161,11 +167,44 @@ desktop entry (which also receives the sign-in callback) and Amp's icons. The fi
 LiveKit's prebuilt WebRTC library for Huddles (156 MB). Dictation and the Huddle camera also need
 GStreamer's base and good plugins.
 
+### Upgrade from 0.1 (the Python app)
+
+Releases 0.1.0 and 0.1.1 were a Python app. 0.2.0 replaces it with the Rust app under the same
+package name, app ID, and data paths, so your settings and your sign-in carry over. Quit Amp before
+you upgrade; the two cannot run at the same time.
+
+- Arch: build and install 0.2.0 from `packaging/arch` as above. The package no longer depends on
+  Python; `pacman -Rns python-livekit` removes the LiveKit package if you installed it only for
+  Amp.
+- Debian and Ubuntu: `sudo apt install ./amp-linux-desktop_0.2.0-1_amd64.deb` replaces the
+  `_all.deb` of 0.1.1.
+- Fedora: `sudo dnf upgrade amp-linux-desktop`.
+- `scripts/install`: pull this repository and run `scripts/install` again. It replaces the Python
+  launcher in `~/.local/bin/amp-linux-desktop` with the binary and deletes the LiveKit Python
+  package from `~/.local/share/amp-native/python`.
+
+## Known limitations
+
+- x86_64 only (see [Install](#install)).
+- Desktop-wide shortcuts are your compositor's bindings to `--action`. The tray needs a
+  StatusNotifierItem host, and the unread count on the launcher icon needs a dock that reads the
+  Unity LauncherEntry API.
+- Tested on Arch Linux (Omarchy, Hyprland, Wayland). The `.deb` and the `.rpm` are checked by
+  installing them in Debian, Ubuntu, and Fedora containers, not yet on a desktop of those
+  distributions.
+- Huddles have no screen sharing and no transcription upload. Notifications have no action buttons
+  and arrive only while Amp runs.
+- Some features of the macOS app are missing or not verified on Linux; the
+  [parity table](#parity-with-the-macos-app) lists each one.
+- Settings → Runner can show the runner as running while the Amp CLI's sign-in is no longer
+  valid, because the CLI does not report it.
+
 ## Bind desktop-wide shortcuts
 
 `amp-linux-desktop --action NAME` runs an action in the running app, or starts the app first. The
-names are `show`, `new-thread`, `dictate-new-thread`, `toggle-puck`, and `puck-voice`. Bind them in
-your compositor. For Hyprland:
+names are `show`, `new-thread`, `dictate-new-thread`, `toggle-puck`, `puck-voice`, `puck-window`,
+and `dictate-to-puck`. **Settings** → **General** → **Keyboard Shortcuts** lists the macOS app's
+global shortcuts with the command for each. Bind them in your compositor. For Hyprland:
 
 ```ini
 bind = SUPER SHIFT, N, exec, amp-linux-desktop --action new-thread

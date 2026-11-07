@@ -1,6 +1,6 @@
 pkgbase = amp-linux-desktop
 	pkgdesc = Native GTK 4 desktop app for Amp, the coding agent at ampcode.com
-	pkgver = 0.1.1
+	pkgver = 0.2.0
 	pkgrel = 1
 	url = https://github.com/5omeOtherGuy/amp-linux-desktop
 	arch = x86_64
@@ -26,13 +26,13 @@ pkgbase = amp-linux-desktop
 	optdepends = gst-plugins-good: dictation and the Huddle camera
 	optdepends = gst-libav: video in the Desktop and Mac tabs of an orb thread
 	optdepends = ampcode: the Amp CLI for running threads on this computer (Amp installs it otherwise)
-	noextract = Amp-1.0-1125.dmg
+	noextract = Amp-1.0-1180.dmg
 	options = !lto
-	source = git+https://github.com/5omeOtherGuy/amp-linux-desktop.git#tag=v0.1.1
-	source = Amp-1.0-1125.dmg::https://static.ampcode.com/mac/Amp-1.0-1125.dmg
+	source = git+https://github.com/5omeOtherGuy/amp-linux-desktop.git#tag=v0.2.0
+	source = Amp-1.0-1180.dmg::https://static.ampcode.com/mac/Amp-1.0-1180.dmg
 	source = webrtc-a545de4-linux-x64-release.zip::https://github.com/livekit/rust-sdks/releases/download/webrtc-a545de4/webrtc-linux-x64-release.zip
 	sha256sums = SKIP
-	sha256sums = 2a671b2a01cb356f79cc76ba5de6822c9df0182bacea3a302c6566c6f8d16f1f
+	sha256sums = 908eb07a006f472ff6f1002d1effa608eb689ae1d50b7185c690eaf8925a9018
 	sha256sums = 2ece73b9a72a2cacd73d0c62ac3a414e202f37885c3c8f49dddb43c1443ac0bd
 
 pkgname = amp-linux-desktop

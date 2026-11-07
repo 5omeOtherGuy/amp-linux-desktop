@@ -7,7 +7,7 @@ default-members = ["crates/app"]
 resolver = "3"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 # The newest rust-version among the dependencies (kstring).
 rust-version = "1.96"

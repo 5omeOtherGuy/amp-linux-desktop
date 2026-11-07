@@ -9,7 +9,7 @@
 %global _lto_cflags %{nil}
 
 Name:           amp-linux-desktop
-Version:        0.1.1
+Version:        0.2.0
 Release:        1%{?dist}
 Summary:        Native GTK desktop app for Amp
 License:        MIT
@@ -78,5 +78,8 @@ desktop-file-validate dev.ampnative.Amp.desktop
 %{_datadir}/applications/dev.ampnative.Amp.desktop
 
 %changelog
+* Sat Nov 07 2026 Simon Gies <simon.gies@pm.me> - 0.2.0-1
+- Build the Rust app, which replaces the Python app; x86_64 only.
+
 * Fri Nov 06 2026 Simon Gies <simon.gies@pm.me> - 0.1.1-1
 - Initial Fedora package; fetch Amp's icons on first start.
