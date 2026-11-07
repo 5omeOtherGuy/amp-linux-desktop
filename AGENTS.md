@@ -6,12 +6,12 @@ page's native bridge the way Amp's macOS app does. Every agent working in this r
 file first, after the workstation rules in `~/.agents/AGENTS.md`, which apply here unchanged. Amp
 orbs do not have that file.
 
-## Python app and Rust port
+## Crates
 
-`crates/` is the app, in Rust: the packages, `scripts/install`, and `dev/` build it. `amp_native/`
-is the Python (PyGObject) app it replaces; 0.1.1 was its last release, and it is deleted once the
-Rust app has shipped as 0.2.0 (owner, 2026-11-06). Change only `crates/` until then. Both use the
-same app ID and data paths, so they share settings and the sign-in.
+`crates/` is the app, in Rust: the packages, `scripts/install`, and `dev/` build it. Releases up to
+0.1.1 were a Python (PyGObject) app, `amp_native/`, which 0.2.0 replaced and removed (owner,
+2026-11-07). The Rust app keeps its app ID and data paths, so an upgrade keeps the settings and the
+sign-in.
 
 The workspace splits the port so that a change recompiles one crate: `crates/app` (windows and the
 page's bridge), `crates/common` (paths, settings, page scripts, theme, icons; no GTK),
