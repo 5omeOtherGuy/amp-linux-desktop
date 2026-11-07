@@ -1,0 +1,9 @@
+#!/bin/sh
+# Test double for Import Threads…: lists the agents like the real CLI, but every import fails as a
+# CLI signed in to another account would. Use with --set thread_import_cli=<this path>.
+amp=$(command -v amp) || { echo "amp CLI not on PATH" >&2; exit 1; }
+case "$*" in
+*"threads import detect"*) exec "$amp" "$@" ;;
+*"threads import"*) echo "Error: The Amp CLI is signed in as someone@example.com, not the account in the app. Run amp login." >&2; exit 1 ;;
+*) exec "$amp" "$@" ;;
+esac

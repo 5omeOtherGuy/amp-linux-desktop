@@ -1,0 +1,15 @@
+[package]
+name = "amp-common"
+description = "The parts of Amp Linux Desktop without GTK: paths, settings, page scripts, theme colours and icon extraction"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+glib = "0.22"
+gio = "0.22"
+log.workspace = true
+serde_json.workspace = true
+soup = { package = "soup3", version = "0.9" }

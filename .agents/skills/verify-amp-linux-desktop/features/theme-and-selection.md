@@ -23,7 +23,7 @@ Preconditions:
 - **Theme.** `verify-amp shot RUN theme`; compare the background and accent with the hex values in the theme's `colors.toml`.
 - **Transcript selection.** Open a thread, `agent-desktop drag S X1 Y X2 Y` across a line of a message, `verify-amp shot RUN select-transcript`. The highlight is clearly distinct from the background and the selected text is readable.
 - **Composer selection.** Type a word into the composer, `ctrl+a`, screenshot, then clear it.
-- **Other themes.** The app follows the owner's current theme only; other themes are checked without the window: call `amp_native.theme.parse_colors(text, light)` on each `/usr/share/omarchy/themes/*/colors.toml` (`light` is whether `light.mode` exists beside it) and compute WCAG contrast of the text colour on the selection colour and of the selection colour on the background. Readable means text-on-selection ≥ 4.5.
+- **Other themes.** The app follows the owner's current theme only; other themes are checked without the window: call `amp_common::theme::parse_colors(text, light)` (from a scratch test in `crates/common`) on each `/usr/share/omarchy/themes/*/colors.toml` (`light` is whether `light.mode` exists beside it) and compute WCAG contrast of the text colour on the selection colour and of the selection colour on the background. Readable means text-on-selection ≥ 4.5.
 
 ## Gotchas
 

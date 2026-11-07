@@ -2,23 +2,42 @@
 # Drives an isolated Amp Linux Desktop instance for verification. See ../SKILL.md.
 #   verify-amp launch RUN [--signed-out] [--size WxH] [--scale S] [--set KEY=VALUE]...
 #   verify-amp doctor RUN
-#   verify-amp app RUN [ARGS...]      # start amp_native detached inside the session (e.g. --action new-thread;
+#   verify-amp app RUN [ARGS...]      # start the app detached inside the session (e.g. --action new-thread;
 #                                     # no ARGS after ctrl+q restarts the app)
 #   verify-amp shot RUN NAME          # screenshot into the evidence dir
 #   verify-amp logs RUN               # print the instance's log paths
+#   verify-amp desk RUN               # start a tray host (waybar) and a notification daemon (mako)
+#   verify-amp labwc RUN              # run the app inside a nested labwc (minimize/maximize work there)
 #   verify-amp cleanup RUN
 set -eu
 
 repo=$(cd "$(dirname "$0")/../../../.." && pwd)
-cmd=${1:?usage: verify-amp launch|doctor|app|shot|logs|cleanup RUN}
+cmd=${1:?usage: verify-amp launch|doctor|app|shot|logs|desk|labwc|cleanup RUN}
 run=${2:?RUN name required}
 shift 2
 session="ampv-$run"
 scratch="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/verify-amp/$run"
 evidence="$repo/.amp/in/artifacts/verify/$run"
+# The debug build of this checkout; launch builds it first.
+bin="$repo/target/debug/amp-linux-desktop"
 
 app_env() {
-	echo "XDG_DATA_HOME=$scratch/data XDG_CONFIG_HOME=$scratch/config XDG_CACHE_HOME=$scratch/cache AMP_NATIVE_DEBUG=1"
+	# BROWSER: links the app opens (sign-in, amp login, Release Notes) are logged to browser.log
+	# instead of reaching a browser, which could hand them to the owner's running one.
+	echo "XDG_DATA_HOME=$scratch/data XDG_CONFIG_HOME=$scratch/config XDG_CACHE_HOME=$scratch/cache AMP_NATIVE_DEBUG=1 BROWSER=$scratch/browser"
+}
+
+# mako, waybar and labwc are not installed on the workstations. Their Arch packages and the
+# dependencies the system lacks are extracted once into this cache, not installed.
+tools="${XDG_CACHE_HOME:-$HOME/.cache}/verify-amp/tools"
+fetch_tools() {
+	[ -x "$tools/root/usr/bin/mako" ] && [ -x "$tools/root/usr/bin/waybar" ] && [ -x "$tools/root/usr/bin/labwc" ] && return
+	mkdir -p "$tools/pkg" "$tools/root"
+	for url in $(pacman -Sp mako waybar labwc); do
+		f="$tools/pkg/${url##*/}"
+		[ -f "$f" ] || curl -fsSL -o "$f" "$url" || { echo "verify-amp: download failed: $url" >&2; exit 1; }
+		bsdtar -xf "$f" -C "$tools/root" usr
+	done
 }
 
 case $cmd in
@@ -35,8 +54,11 @@ launch)
 		shift
 	done
 	if agent-desktop info "$session" >/dev/null 2>&1; then echo "verify-amp: $session already running; cleanup first" >&2; exit 1; fi
+	cargo build -q --manifest-path "$repo/Cargo.toml" || { echo "verify-amp: build failed" >&2; exit 1; }
 	mkdir -p "$scratch/data/amp-native" "$scratch/config/amp-native" "$scratch/cache/amp-native" "$evidence"
 	chmod 700 "$scratch"
+	printf '#!/bin/sh\necho "$(date +%%T) $*" >>"%s/cache/amp-native/browser.log"\n' "$scratch" >"$scratch/browser"
+	chmod +x "$scratch/browser"
 	if [ "$signed_in" = 1 ]; then
 		# A copy of the owner's login and settings; the original is never written.
 		[ -f "$HOME/.local/share/amp-native/web/cookies.sqlite" ] || { echo "verify-amp: no signed-in profile to copy; use --signed-out" >&2; exit 1; }
@@ -57,12 +79,15 @@ for pair in sys.argv[2:]:
 json.dump(data, open(path, "w"), indent=2)
 PY
 	[ -d "$HOME/.local/share/amp-native/icons" ] && cp -r "$HOME/.local/share/amp-native/icons" "$scratch/data/amp-native/"
-	# Huddles import livekit from the data dir; link the installed copy instead of copying 90 MB.
-	[ -d "$HOME/.local/share/amp-native/python" ] && ln -s "$HOME/.local/share/amp-native/python" "$scratch/data/amp-native/python"
+	# The headless output has no physical size, so WebKit reads a font DPI of 0 and gives every web
+	# view after the first a page scale of 0: a second window (Puck, New Window) stays blank. A
+	# desktop's Xft DPI of 96 avoids that (WebKitGTK 2.54, 2026-11-06).
+	mkdir -p "$scratch/config/gtk-4.0"
+	printf '[Settings]\ngtk-xft-dpi=98304\n' >"$scratch/config/gtk-4.0/settings.ini"
 	agent-desktop start "$session" --gpu --size "$size" >/dev/null
 	[ "$scale" = 1 ] || agent-desktop swaymsg "$session" "output * scale $scale" >/dev/null
 	# shellcheck disable=SC2046
-	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr.log" -- env $(app_env) sh -c "cd '$repo' && exec python3 -m amp_native" >/dev/null 2>&1
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr.log" -- env $(app_env) "$bin" >/dev/null 2>&1
 	agent-desktop wait "$session" dev.ampnative.Amp 30 >/dev/null
 	sleep 10
 	agent-desktop windows "$session"
@@ -79,17 +104,17 @@ doctor)
 	log="$scratch/cache/amp-native/amp-native.log"
 	echo "page: $(grep -o 'ampNavigationState [^ ]*' "$log" 2>/dev/null | tail -1 | cut -d' ' -f2)"
 	if grep -q 'sign-in\|/__native/start' "$log" 2>/dev/null && ! grep -q '__native/home\|/threads/' "$log"; then echo "auth: signed out"; else echo "auth: signed in (page left the start screen)"; fi
-	errors=$(grep -c -E 'WARNING|ERROR|Traceback' "$log" 2>/dev/null || true)
+	errors=$(grep -c -E 'WARNING|ERROR' "$log" 2>/dev/null || true)
 	echo "log warnings/errors: ${errors:-0} ($log)"
-	tracebacks=$(cat "$scratch/cache/amp-native/"stderr*.log 2>/dev/null | grep -c Traceback || true)
-	echo "stderr tracebacks: ${tracebacks:-0}"
+	panics=$(cat "$scratch/cache/amp-native/"stderr*.log 2>/dev/null | grep -c 'panicked at' || true)
+	echo "stderr panics: ${panics:-0}"
 	;;
 app)
 	# Detached and tracked by the session: a cold start becomes the long-running app instance,
 	# which would block a foreground exec. A second instance hands its args to the running one and exits.
 	# shellcheck disable=SC2046
-	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr-app-$(date +%H%M%S).log" -- env $(app_env) sh -c "cd '$repo' && exec python3 -m amp_native $*" >/dev/null 2>&1
-	echo "started amp_native $* in $session"
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/stderr-app-$(date +%H%M%S).log" -- env $(app_env) "$bin" "$@" >/dev/null 2>&1
+	echo "started amp-linux-desktop $* in $session"
 	;;
 shot)
 	name=${1:?NAME required}
@@ -98,9 +123,42 @@ shot)
 	echo "$evidence/$name.png"
 	;;
 logs)
-	# Python log, then stderr (GTK/WebKit and tracebacks) of the launch and of each `app` run.
+	# App log, then stderr (GTK/WebKit and panics) of the launch and of each `app` run.
 	echo "$scratch/cache/amp-native/amp-native.log"
 	ls -t "$scratch/cache/amp-native/"stderr*.log 2>/dev/null
+	;;
+desk)
+	# The session's private bus has no StatusNotifierWatcher (the tray icon has nowhere to go) and
+	# no notification daemon. waybar hosts the tray at the bottom of the screen; mako shows
+	# notifications at the top right and keeps them until clicked.
+	fetch_tools
+	conf="$scratch/desk"
+	mkdir -p "$conf"
+	printf 'default-timeout=0\nanchor=top-right\nfont=sans 12\nwidth=360\n' >"$conf/mako"
+	echo '{ "layer": "top", "position": "bottom", "height": 34, "modules-right": ["tray"], "modules-left": [], "tray": { "icon-size": 22, "spacing": 8 } }' >"$conf/waybar.json"
+	echo '* { font-family: sans-serif; font-size: 14px; } window#waybar { background: #222; color: #eee; }' >"$conf/waybar.css"
+	lib="$tools/root/usr/lib"
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/mako.log" -- env LD_LIBRARY_PATH="$lib" "$tools/root/usr/bin/mako" -c "$conf/mako" >/dev/null
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/waybar.log" -- env LD_LIBRARY_PATH="$lib" XDG_CONFIG_DIRS=/etc/xdg "$tools/root/usr/bin/waybar" -c "$conf/waybar.json" -s "$conf/waybar.css" >/dev/null
+	echo "started mako and waybar in $session"
+	;;
+labwc)
+	# sway ignores the app's minimize and maximize requests; labwc, nested as a window of the
+	# session, honours them. The app inside it is not in `agent-desktop windows`, so doctor fails.
+	# The app keeps running without a window (in the tray), and a second copy started in labwc
+	# would hand over to it and exit; so look for this run's process, not its window.
+	for pid in $(pgrep -f "^$bin" || true); do
+		if tr '\0' '\n' <"/proc/$pid/environ" 2>/dev/null | grep -qx "XDG_DATA_HOME=$scratch/data"; then
+			echo "verify-amp: quit the app first (agent-desktop key $session ctrl+q; pid $pid)" >&2
+			exit 1
+		fi
+	done
+	fetch_tools
+	mkdir -p "$scratch/labwc"
+	echo '<?xml version="1.0"?><labwc_config><core><decoration>server</decoration></core></labwc_config>' >"$scratch/labwc/rc.xml"
+	agent-desktop run "$session" --log "$scratch/cache/amp-native/labwc.log" -- env LD_LIBRARY_PATH="$tools/root/usr/lib" WLR_BACKENDS=wayland WLR_RENDERER=pixman \
+		"$tools/root/usr/bin/labwc" -C "$scratch/labwc" -s "env $(app_env) $bin" >/dev/null
+	echo "started labwc with the app in $session; screenshot in about 15 s"
 	;;
 cleanup)
 	mkdir -p "$evidence"

@@ -1,4 +1,2 @@
-# A noarch PyGObject app loads these libraries through GObject introspection, so it must require
-# the library packages by name; Fedora publishes no typelib() provides for them.
-addFilter("explicit-lib-dependency libadwaita")
 addFilter("no-manual-page-for-binary")
+addFilter("spelling-error .*macOS")

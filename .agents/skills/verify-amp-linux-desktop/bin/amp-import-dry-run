@@ -1,0 +1,20 @@
+#!/bin/sh
+# Test double for Settings → General → Import Threads…: the real Amp CLI, but every import is a
+# --dry-run (offline, creates no threads in the account), and Claude Code reads a one-conversation
+# probe folder instead of ~/.claude. Use with `verify-amp launch RUN --set thread_import_cli=<this path>`.
+# Logs each call to the run's cli-calls.log, which cleanup keeps.
+amp=$(command -v amp) || { echo "amp CLI not on PATH" >&2; exit 1; }
+cache="${XDG_CACHE_HOME:-/tmp}/amp-native"
+echo "$(date +%T) $*" >>"$cache/cli-calls.log"
+probe="$cache/claude-probe"
+if [ ! -d "$probe/projects" ]; then
+	mkdir -p "$probe/projects/-tmp-probe"
+	now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+	printf '{"type":"user","sessionId":"77b2ae34-a071-4ce5-8394-97d2d9ce0b59","cwd":"/tmp/probe","uuid":"06560a70-f5a6-4830-8f57-5b9f38ba2a48","timestamp":"%s","message":{"role":"user","content":"probe"}}\n{"type":"assistant","sessionId":"77b2ae34-a071-4ce5-8394-97d2d9ce0b59","cwd":"/tmp/probe","uuid":"3245af9d-6e24-4a0d-8968-7a2486e494bc","timestamp":"%s","message":{"role":"assistant","model":"claude","content":[{"type":"text","text":"ok"}]}}\n' "$now" "$now" >"$probe/projects/-tmp-probe/77b2ae34-a071-4ce5-8394-97d2d9ce0b59.jsonl"
+fi
+case "$*" in
+*"threads import detect"*) exec "$amp" "$@" ;;
+*"threads import claude"*) exec "$amp" "$@" --dry-run --claude-dir "$probe" ;;
+*"threads import"*) exec "$amp" "$@" --dry-run ;;
+*) exec "$amp" "$@" ;;
+esac

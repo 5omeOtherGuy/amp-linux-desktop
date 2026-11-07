@@ -1,47 +1,34 @@
 #!/bin/sh
-# Installs Amp for Linux for the current user: a launcher, the desktop entry that also receives
-# the com.ampcode.amp.linux.auth sign-in callback, and the app icons.
+# Builds Amp for Linux from this checkout and installs it for the current user: the binary, the
+# desktop entry that also receives the com.ampcode.amp.linux.auth sign-in callback, and the app
+# icons.
 set -eu
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 data=${XDG_DATA_HOME:-$HOME/.local/share}
 bin=$HOME/.local/bin
-python=/usr/bin/python3
 
-"$python" -c 'import gi; gi.require_version("Gtk", "4.0"); gi.require_version("Adw", "1"); gi.require_version("WebKit", "6.0")' 2>/dev/null || {
-	echo "install: needs PyGObject with GTK 4, libadwaita and WebKitGTK 6.0:" >&2
-	echo "  Arch:   pacman -S python-gobject gtk4 libadwaita webkitgtk-6.0 gst-libav 7zip" >&2
-	echo "  Debian: apt install python3-gi gir1.2-adw-1 gir1.2-webkit-6.0 gstreamer1.0-libav 7zip" >&2
+command -v cargo >/dev/null && command -v clang++ >/dev/null && pkg-config --exists gtk4 libadwaita-1 webkitgtk-6.0 || {
+	echo "install: needs cargo, clang, and GTK 4, libadwaita and WebKitGTK 6.0 with their headers:" >&2
+	echo "  Arch:   pacman -S rust clang gtk4 libadwaita webkitgtk-6.0 gst-plugins-base-libs gst-libav 7zip" >&2
+	echo "  Debian: apt install cargo clang libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev \\" >&2
+	echo "          libgstreamer-plugins-base1.0-dev libsoup-3.0-dev libsqlite3-dev gstreamer1.0-libav 7zip" >&2
 	exit 1
 }
 
+(cd "$root" && cargo build --locked --release)
 mkdir -p "$bin" "$data/applications" "$data/icons/hicolor/512x512/apps"
-# A launch from the desktop has its stderr on /dev/null, which would lose Python callback errors and
-# GTK and WebKit warnings. Keep it in a file instead, rotated at 1 MB.
-cat >"$bin/amp-linux-desktop" <<EOF
-#!/bin/sh
-if [ ! -t 2 ]; then
-	log=\${XDG_CACHE_HOME:-\$HOME/.cache}/amp-native/stderr.log
-	mkdir -p "\${log%/*}"
-	[ "\$(stat -c %s "\$log" 2>/dev/null || echo 0)" -gt 1000000 ] && mv -f "\$log" "\$log.old"
-	exec 2>>"\$log"
-fi
-cd "$root" && exec $python -m amp_native "\$@"
-EOF
-chmod +x "$bin/amp-linux-desktop"
+# A copy, so that a later build in the checkout does not replace the binary of a running Amp. The
+# binary keeps its own stderr in ~/.cache/amp-native/stderr.log when started from the desktop.
+install -m755 "$root/target/release/amp-linux-desktop" "$bin/amp-linux-desktop.new"
+mv -f "$bin/amp-linux-desktop.new" "$bin/amp-linux-desktop"
 
 sed "s|@BIN@|$bin/amp-linux-desktop|g" "$root/data/dev.ampnative.Amp.desktop" >"$data/applications/dev.ampnative.Amp.desktop"
 
-# Huddles need the LiveKit SDK, since distribution WebKitGTK has no WebRTC. It goes next to the
-# app's data, outside the system's Python packages.
-huddle=$data/amp-native/python
-if command -v uv >/dev/null; then
-	uv pip install -q --python "$python" --target "$huddle" livekit
-else
-	"$python" -m pip install -q --target "$huddle" livekit
-fi || echo "install: continuing without Huddles (could not install the livekit package)" >&2
+# Earlier versions put the LiveKit Python SDK here for Huddles; the binary includes LiveKit now.
+rm -rf "$data/amp-native/python"
 
-(cd "$root" && "$python" -m amp_native.icons) || echo "install: continuing without Amp's icons" >&2
+"$bin/amp-linux-desktop" --extract-icons || echo "install: continuing without Amp's icons" >&2
 icon=$data/amp-native/icons/dark.png
 [ -f "$icon" ] && cp "$icon" "$data/icons/hicolor/512x512/apps/dev.ampnative.Amp.png"
 
