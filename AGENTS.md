@@ -4,7 +4,8 @@ Amp Linux Desktop, a GTK 4, libadwaita, and WebKitGTK app in Rust (binary `amp-l
 `dev.ampnative.Amp`, GitHub `5omeOtherGuy/amp-linux-desktop`). It loads ampcode.com and answers the
 page's native bridge the way Amp's macOS app does. Every agent working in this repository reads this
 file first, after the workstation rules in `~/.agents/AGENTS.md`, which apply here unchanged. Amp
-orbs do not have that file.
+orbs do not have that file. An agent taking the project over without prior context then loads the
+[onboarding-amp-linux-desktop](.agents/skills/onboarding-amp-linux-desktop/SKILL.md) skill.
 
 ## Crates
 
