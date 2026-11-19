@@ -11,10 +11,9 @@ that 0.2.0 removed.
 
 Read these first, in order. This skill does not repeat them:
 
-1. `~/.agents/AGENTS.md` (workstation rules: commit by explicit path, never kill or delete what
-   you did not start or create, Bitwarden, `omarchy pkg add`). Orbs do not have it.
-2. [AGENTS.md](../../../AGENTS.md): crate layout, the verify rule, artwork and privacy rules,
-   documentation rules, and the release steps.
+1. `~/.agents/AGENTS.md` (workstation rules). Orbs do not have it.
+2. [AGENTS.md](../../../AGENTS.md): crate layout, the verify rule, artwork and privacy rules, and
+   documentation rules. Release steps: [releasing-amp-linux-desktop](../releasing-amp-linux-desktop/SKILL.md).
 3. [README.md](../../../README.md): what users get, the macOS parity table, install and upgrade.
 4. [verify-amp-linux-desktop](../verify-amp-linux-desktop/SKILL.md) and its `features/` before
    you drive the app. Its "Do not" rules hold in every run.
@@ -24,7 +23,7 @@ Read these first, in order. This skill does not repeat them:
 - `/home/phasetwo/Work/amp-linux-desktop` is the main checkout on `main`. The owner's installed
   Amp was built from it with `scripts/install`; keep it on `main` and do not commit there.
 - Work in a worktree off `origin/main`:
-  `git -C /home/phasetwo/Work/amp-linux-desktop worktree add ../amp-linux-desktop-TASK -b TASK origin/main`.
+  `git -C /home/phasetwo/Work/amp-linux-desktop worktree add ~/Work/.worktrees/amp-linux-desktop/TASK -b TASK origin/main`.
   Run `git fetch` first.
 - Each worktree's `target/` grows to 3.5-7 GB with Huddles (measured on this machine,
   November 2026). The first build of each profile downloads LiveKit's libwebrtc (156 MB). Check
@@ -72,8 +71,8 @@ The page decides what the shell supports from the `dataset.ampShell` marker and 
   `--no-default-features`. `cargo test --workspace` has one unit test (2026-11-08), so a passing
   test run proves little.
 - **Review risky changes:** concurrency, D-Bus, process lifetimes, packaging and auth need a
-  GPT-6.1 Sol review on high reasoning, run in tmux:
-  `codex exec -m gpt-6.1-sol -c model_reasoning_effort=high -s read-only -o OUT.md - < BRIEF.md`.
+  GPT-6.2 Sol review on high reasoning, run in tmux:
+  `codex exec -m gpt-6.2-sol -c model_reasoning_effort=high -s read-only -o OUT.md - < BRIEF.md`.
   The briefs and rounds from the parity sprint are examples, in
   `/home/phasetwo/Work/amp-linux-desktop-rust-parity/.amp/in/sol-review/`.
 - **Package checks:** run them in Docker with `sudo -n docker`.
@@ -93,7 +92,7 @@ these:
 - Changing his running Amp or its launchers.
 - Any test that creates threads, sends messages, starts calls or changes account settings.
 
-Pushing a feature branch is reversible. The COPR webhook builds every pushed tag; AGENTS.md says
+Pushing a feature branch is reversible. The COPR webhook builds every pushed tag; the release skill says
 branch pushes build nothing, but a new branch also sends a `create` event, so check COPR's build
 list after your first branch push.
 
