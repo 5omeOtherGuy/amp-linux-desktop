@@ -1,3 +1,5 @@
+Archived 2026-11-20: this repository is retired. Source, branches, tags and existing releases are retained for reference.
+
 # Amp Linux Desktop
 
 Amp Linux Desktop runs [Amp](https://ampcode.com) as a desktop app on Linux. Like Amp's macOS app,
