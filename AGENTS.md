@@ -1,3 +1,6 @@
+## Profile
+- Stage: archived (repository standard)
+
 # Amp Linux Desktop
 
 Amp Linux Desktop, a GTK 4, libadwaita, and WebKitGTK app in Rust (binary `amp-linux-desktop`, app ID
